@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "394175121263",
+    "project_id": "reservation-db-39a59",
+    "storage_bucket": "reservation-db-39a59.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:394175121263:android:558a0329f1f79aa3ea8a9a",
+        "android_client_info": {
+          "package_name": "com.example.atmin_barber"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "394175121263-oi2tgtj3gl988fu3j88ekpniake194vj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAR09Mci5PZyJDbpq6_fZyYTiHtqBultGs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "394175121263-oi2tgtj3gl988fu3j88ekpniake194vj.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "394175121263-81q53oufev22707par55dseghpjjnss8.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.atminBarber"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:394175121263:android:1d3ed6cefb5bc8d8ea8a9a",
+        "android_client_info": {
+          "package_name": "com.example.barbershoop"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "394175121263-oi2tgtj3gl988fu3j88ekpniake194vj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAR09Mci5PZyJDbpq6_fZyYTiHtqBultGs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "394175121263-oi2tgtj3gl988fu3j88ekpniake194vj.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "394175121263-81q53oufev22707par55dseghpjjnss8.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.atminBarber"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
