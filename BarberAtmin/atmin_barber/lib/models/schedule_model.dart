@@ -1,8 +1,6 @@
 class ScheduleModel {
   final bool isOpen;
-
   final int openMinutes;
-
   final int closeMinutes;
 
   ScheduleModel({

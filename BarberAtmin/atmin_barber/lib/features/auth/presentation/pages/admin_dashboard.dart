@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../../../models/reservation_model.dart';
+import '../../../../models/schedule_model.dart';
+import '../../../../models/store_settings_model.dart';
 import '../../../../services/reservation_service.dart';
+import '../../../../services/schedule_sevice.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -65,6 +67,7 @@ class _BookingsTabState extends State<_BookingsTab> {
   final ReservationService _reservationService = ReservationService();
 
   String _activeFilter = "All";
+  String _search = "";
 
   final Map<String, String> _statusMap = const {
     "Waiting": "Pending",
@@ -79,6 +82,31 @@ class _BookingsTabState extends State<_BookingsTab> {
     return Column(
       children: [
         const SizedBox(height: 12),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: TextField(
+            onChanged: (value) {
+              setState(() {
+                _search = value.toLowerCase().trim();
+              });
+            },
+            decoration: InputDecoration(
+              hintText: "Cari nama atau WhatsApp...",
+              prefixIcon: const Icon(Icons.search),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(vertical: 0),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -117,38 +145,218 @@ class _BookingsTabState extends State<_BookingsTab> {
               }
 
               final allReservations = snapshot.data ?? [];
+              final total = allReservations.length;
 
-              final filteredReservations = _activeFilter == "All"
-                  ? allReservations
-                  : allReservations.where((reservation) {
-                      return reservation.status == _statusMap[_activeFilter];
-                    }).toList();
+              final filteredReservations = allReservations.where((reservation) {
+                final statusMatch =
+                    _activeFilter == "All" ||
+                    reservation.status == _statusMap[_activeFilter];
+
+                final keyword = "${reservation.name} ${reservation.phone}"
+                    .toLowerCase();
+
+                final searchMatch = keyword.contains(_search);
+
+                return statusMatch && searchMatch;
+              }).toList();
+
+              final pending = allReservations
+                  .where((e) => e.status == "Pending")
+                  .length;
+
+              final approved = allReservations
+                  .where((e) => e.status == "Approved")
+                  .length;
+
+              final rejected = allReservations
+                  .where((e) => e.status == "Rejected")
+                  .length;
+
+              final completed = allReservations
+                  .where((e) => e.status == "Completed")
+                  .length;
+
+              final cancelled = allReservations.where((e) {
+                return e.status == "CancelledByCustomer" ||
+                    e.status == "CancelledByAdmin";
+              }).length;
 
               if (filteredReservations.isEmpty) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20.0),
-                    child: Text(
-                      "Belum ada reservasi untuk filter ini.",
-                      style: TextStyle(color: Colors.black45),
-                    ),
+                return SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatCard(
+                              title: "Total",
+                              value: total.toString(),
+                              color: Colors.blue,
+                              icon: Icons.calendar_today,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildStatCard(
+                              title: "Pending",
+                              value: pending.toString(),
+                              color: Colors.orange,
+                              icon: Icons.schedule,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatCard(
+                              title: "Approved",
+                              value: approved.toString(),
+                              color: Colors.green,
+                              icon: Icons.check_circle,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildStatCard(
+                              title: "Rejected",
+                              value: rejected.toString(),
+                              color: Colors.redAccent,
+                              icon: Icons.cancel,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatCard(
+                              title: "Done",
+                              value: completed.toString(),
+                              color: Colors.grey,
+                              icon: Icons.done_all,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildStatCard(
+                              title: "Cancelled",
+                              value: cancelled.toString(),
+                              color: Colors.red,
+                              icon: Icons.block,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Text(
+                          "Belum ada reservasi untuk filter ini.",
+                          style: TextStyle(color: Colors.black45),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               }
 
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 4.0,
+              return SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            title: "Total",
+                            value: total.toString(),
+                            color: Colors.blue,
+                            icon: Icons.calendar_today,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            title: "Pending",
+                            value: pending.toString(),
+                            color: Colors.orange,
+                            icon: Icons.schedule,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            title: "Approved",
+                            value: approved.toString(),
+                            color: Colors.green,
+                            icon: Icons.check_circle,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            title: "Rejected",
+                            value: rejected.toString(),
+                            color: Colors.red,
+                            icon: Icons.cancel,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            title: "Completed",
+                            value: completed.toString(),
+                            color: Colors.blueGrey,
+                            icon: Icons.done_all,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            title: "Cancelled",
+                            value: cancelled.toString(),
+                            color: Colors.grey,
+                            icon: Icons.block,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: filteredReservations.length,
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildBookingCard(filteredReservations[index]),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-                itemCount: filteredReservations.length,
-                itemBuilder: (context, index) {
-                  final reservation = filteredReservations[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildBookingCard(reservation),
-                  );
-                },
               );
             },
           ),
@@ -178,6 +386,41 @@ class _BookingsTabState extends State<_BookingsTab> {
             fontSize: 14,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required String title,
+    required String value,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+        ],
       ),
     );
   }
@@ -235,101 +478,212 @@ class _BookingsTabState extends State<_BookingsTab> {
         statusTextColor = Colors.grey;
     }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const CircleAvatar(
-                    backgroundColor: Color(0xFF0F3773),
-                    radius: 18,
-                    child: Icon(Icons.person, color: Colors.white, size: 20),
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () {
+        _showReservationDetail(reservation);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const CircleAvatar(
+                      backgroundColor: Color(0xFF0F3773),
+                      radius: 18,
+                      child: Icon(Icons.person, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 18,
+                  decoration: BoxDecoration(
+                    color: statusBgColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: statusTextColor.withOpacity(0.5)),
+                  ),
+                  child: Text(
+                    statusText,
+                    style: TextStyle(
+                      color: statusTextColor,
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
                     ),
                   ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: statusBgColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: statusTextColor.withOpacity(0.5)),
-                ),
-                child: Text(
-                  statusText,
-                  style: TextStyle(
-                    color: statusTextColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildRowDetail("WhatsApp", phone),
-          const SizedBox(height: 8),
-          _buildRowDetail("Date", displayDate),
-          const SizedBox(height: 8),
-          _buildRowDetail("Time", time),
-          if (showApproveReject) ...[
-            const SizedBox(height: 16),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildActionButton(
-                  label: "Confirm",
-                  icon: Icons.check,
-                  color: const Color(0xFF28A745),
-                  bgColor: const Color(0xFFD4EDDA),
-                  onTap: () => _approveReservation(reservation.id!),
-                ),
-
-                _buildActionButton(
-                  label: "Reject",
-                  icon: Icons.close,
-                  color: const Color(0xFFDC3545),
-                  bgColor: const Color(0xFFF8D7DA),
-                  onTap: () => _rejectReservation(reservation.id!),
                 ),
               ],
             ),
-          ],
-
-          if (showComplete) ...[
             const SizedBox(height: 16),
+            _buildRowDetail("WhatsApp", phone),
+            const SizedBox(height: 8),
+            _buildRowDetail("Date", displayDate),
+            const SizedBox(height: 8),
+            _buildRowDetail("Time", time),
+            if (showApproveReject) ...[
+              const SizedBox(height: 16),
 
-            Center(
-              child: _buildActionButton(
-                label: "Complete",
-                icon: Icons.check_circle,
-                color: const Color(0xFF0F3773),
-                bgColor: const Color(0xFFCDE8FC),
-                onTap: () => _completeReservation(reservation.id!),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildActionButton(
+                    label: "Confirm",
+                    icon: Icons.check,
+                    color: const Color(0xFF28A745),
+                    bgColor: const Color(0xFFD4EDDA),
+                    onTap: () {
+                      _showConfirmationDialog(
+                        title: "Konfirmasi Reservasi",
+                        message:
+                            "Setujui reservasi atas nama\n\n${reservation.name}\n\npada ${reservation.bookingDate} ${reservation.bookingTime} ?",
+                        color: Colors.green,
+                        onConfirm: () async {
+                          await _approveReservation(reservation.id!);
+                        },
+                      );
+                    },
+                  ),
+
+                  _buildActionButton(
+                    label: "Reject",
+                    icon: Icons.close,
+                    color: const Color(0xFFDC3545),
+                    bgColor: const Color(0xFFF8D7DA),
+                    onTap: () {
+                      _showConfirmationDialog(
+                        title: "Tolak Reservasi",
+                        message:
+                            "Tolak reservasi atas nama\n\n${reservation.name}\n\n?",
+                        color: Colors.red,
+                        onConfirm: () async {
+                          await _rejectReservation(reservation.id!);
+                        },
+                      );
+                    },
+                  ),
+                ],
               ),
+            ],
+
+            if (showComplete) ...[
+              const SizedBox(height: 16),
+
+              Center(
+                child: _buildActionButton(
+                  label: "Complete",
+                  icon: Icons.check_circle,
+                  color: const Color(0xFF0F3773),
+                  bgColor: const Color(0xFFCDE8FC),
+                  onTap: () {
+                    _showConfirmationDialog(
+                      title: "Selesaikan Reservasi",
+                      message:
+                          "Reservasi milik\n\n${reservation.name}\n\nsudah selesai?",
+                      color: const Color(0xFF0F3773),
+                      onConfirm: () async {
+                        await _completeReservation(reservation.id!);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showReservationDetail(ReservationModel reservation) {
+    showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: const Text(
+            "Reservation Detail",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _detailItem("Status", reservation.status),
+
+                _detailItem("Nama", reservation.name),
+
+                _detailItem("WhatsApp", reservation.phone),
+
+                _detailItem("Tanggal", reservation.bookingDate),
+
+                _detailItem("Jam", reservation.bookingTime),
+
+                if (reservation.createdAt != null)
+                  _detailItem(
+                    "Created",
+                    DateFormat(
+                      "dd MMM yyyy HH:mm",
+                    ).format(reservation.createdAt!),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Tutup"),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  Widget _detailItem(String title, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 95,
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: Colors.grey,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
         ],
       ),
     );
@@ -387,6 +741,46 @@ class _BookingsTabState extends State<_BookingsTab> {
         ).showSnackBar(SnackBar(content: Text("Error : $e")));
       }
     }
+  }
+
+  Future<void> _showConfirmationDialog({
+    required String title,
+    required String message,
+    required Color color,
+    required Future<void> Function() onConfirm,
+  }) async {
+    await showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("Batal"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                Navigator.pop(context);
+
+                await onConfirm();
+              },
+              child: const Text("Ya"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildRowDetail(String label, String value) {
@@ -457,298 +851,627 @@ class _SchedulesTab extends StatefulWidget {
 }
 
 class _SchedulesTabState extends State<_SchedulesTab> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ScheduleService _scheduleService = ScheduleService();
 
-  // Satu dokumen tunggal untuk pengaturan toko, biar gampang diakses 2 app
-  final DocumentReference _storeDoc = FirebaseFirestore.instance
-      .collection('store_settings')
-      .doc('main');
+  StoreSettingsModel? _settings;
 
-  final List<String> _dayOrder = const [
-    "Senin",
-    "Selasa",
-    "Rabu",
-    "Kamis",
-    "Jumat",
-    "Sabtu",
-    "Minggu",
+  Map<String, ScheduleModel> _defaultSchedules = {};
+  List<Map<String, dynamic>> _specialSchedules = [];
+
+  bool _loading = true;
+
+  String _formatMinutes(int minutes) {
+    final hour = (minutes ~/ 60).toString().padLeft(2, "0");
+    final minute = (minutes % 60).toString().padLeft(2, "0");
+
+    return "$hour:$minute";
+  }
+
+  int _parseTime(String time) {
+    final split = time.split(":");
+    return int.parse(split[0]) * 60 + int.parse(split[1]);
+  }
+
+  final List<String> _days = [
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
   ];
-
-  // Default data kalau dokumen belum pernah dibuat di Firestore
-  final Map<String, Map<String, dynamic>> _defaultSchedule = const {
-    "Senin": {"isOpen": true, "hours": "09:00 - 20:00"},
-    "Selasa": {"isOpen": true, "hours": "09:00 - 20:00"},
-    "Rabu": {"isOpen": true, "hours": "09:00 - 20:00"},
-    "Kamis": {"isOpen": true, "hours": "09:00 - 20:00"},
-    "Jumat": {"isOpen": true, "hours": "09:00 - 20:00"},
-    "Sabtu": {"isOpen": true, "hours": "08:00 - 21:00"},
-    "Minggu": {"isOpen": false, "hours": "Tutup (Libur)"},
-  };
 
   @override
   void initState() {
     super.initState();
-    _ensureDocExists();
+    _loadData();
   }
 
-  // Kalau dokumen 'main' belum ada, buat dulu dengan data default
-  Future<void> _ensureDocExists() async {
-    final snapshot = await _storeDoc.get();
-    if (!snapshot.exists) {
-      await _storeDoc.set({'isStoreOpen': true, 'schedule': _defaultSchedule});
+  Future<void> _loadData() async {
+    _settings = await _scheduleService.getStoreSettings();
+    _defaultSchedules.clear();
+
+    for (final day in _days) {
+      final schedule = await _scheduleService.getDefaultSchedule(day);
+
+      if (schedule != null) {
+        _defaultSchedules[day] = schedule;
+      }
     }
+
+    _specialSchedules = await _scheduleService.getSpecialSchedules();
+
+    setState(() {
+      _loading = false;
+    });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: _storeDoc.snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || !snapshot.data!.exists) {
-          return const Center(
-            child: CircularProgressIndicator(color: Color(0xFF0F3773)),
-          );
-        }
+  Future<void> _showEditScheduleDialog(String day) async {
+    final schedule = _defaultSchedules[day];
 
-        final data = snapshot.data!.data() as Map<String, dynamic>;
-        final bool isStoreOpen = data['isStoreOpen'] ?? true;
-        final Map<String, dynamic> schedule = Map<String, dynamic>.from(
-          data['schedule'] ?? _defaultSchedule,
-        );
+    if (schedule == null) return;
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // --- KARTU MASTER BUKA/TUTUP ---
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isStoreOpen
-                        ? const Color(0xFF28A745).withOpacity(0.5)
-                        : const Color(0xFFDC3545).withOpacity(0.5),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Status Toko Hari Ini",
-                          style: TextStyle(color: Colors.black54, fontSize: 14),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          isStoreOpen
-                              ? "Menerima Reservasi (BUKA)"
-                              : "Toko Sedang Tutup",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isStoreOpen
-                                ? const Color(0xFF28A745)
-                                : const Color(0xFFDC3545),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Switch(
-                      value: isStoreOpen,
-                      activeColor: const Color(0xFF0F3773),
-                      onChanged: (value) {
-                        _storeDoc.update({'isStoreOpen': value});
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                "Jam Operasional Mingguan",
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F3773),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _dayOrder.length,
-                itemBuilder: (context, index) {
-                  final day = _dayOrder[index];
-                  final dayData = Map<String, dynamic>.from(
-                    schedule[day] ?? {"isOpen": true, "hours": "09:00 - 20:00"},
-                  );
-                  final bool dayIsOpen = dayData["isOpen"] ?? true;
-                  final String hours = dayData["hours"] ?? "-";
+    bool isOpen = schedule.isOpen;
 
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.calendar_today,
-                              size: 18,
-                              color: dayIsOpen
-                                  ? const Color(0xFF0F3773)
-                                  : Colors.grey,
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              day,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: dayIsOpen ? Colors.black87 : Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            Text(
-                              hours,
-                              style: TextStyle(
-                                color: dayIsOpen
-                                    ? Colors.black54
-                                    : const Color(0xFFDC3545),
-                                fontWeight: dayIsOpen
-                                    ? FontWeight.normal
-                                    : FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            GestureDetector(
-                              onTap: () => _showEditDayDialog(
-                                day,
-                                dayIsOpen,
-                                hours,
-                                schedule,
-                              ),
-                              child: const Icon(
-                                Icons.edit,
-                                size: 16,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
+    final openController = TextEditingController(
+      text: _formatMinutes(schedule.openMinutes),
     );
-  }
 
-  // --- POPUP EDIT JAM PER HARI ---
-  void _showEditDayDialog(
-    String day,
-    bool currentIsOpen,
-    String currentHours,
-    Map<String, dynamic> fullSchedule,
-  ) {
-    bool tempIsOpen = currentIsOpen;
-    final hoursController = TextEditingController(text: currentHours);
+    final closeController = TextEditingController(
+      text: _formatMinutes(schedule.closeMinutes),
+    );
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Text("Edit Jadwal $day"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text("Buka di hari ini"),
-                      Switch(
-                        value: tempIsOpen,
-                        activeColor: const Color(0xFF0F3773),
-                        onChanged: (value) {
-                          setDialogState(() => tempIsOpen = value);
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: hoursController,
-                    enabled: tempIsOpen,
-                    decoration: const InputDecoration(
-                      labelText: "Jam operasional",
-                      hintText: "Contoh: 09:00 - 20:00",
-                      border: OutlineInputBorder(),
+              title: Text(day.toUpperCase()),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SwitchListTile(
+                      value: isOpen,
+                      title: const Text("Hari Buka"),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          isOpen = value;
+                        });
+                      },
                     ),
-                  ),
-                ],
+
+                    TextField(
+                      controller: openController,
+                      readOnly: true,
+                      onTap: () => _pickTime(context, openController),
+                      decoration: const InputDecoration(
+                        labelText: "Jam Buka",
+                        suffixIcon: Icon(Icons.access_time),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      controller: closeController,
+                      readOnly: true,
+                      onTap: () => _pickTime(context, closeController),
+                      decoration: const InputDecoration(
+                        labelText: "Jam Tutup",
+                        suffixIcon: Icon(Icons.access_time),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    "Batal",
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F3773),
-                  ),
-                  onPressed: () async {
-                    final updatedSchedule = Map<String, dynamic>.from(
-                      fullSchedule,
-                    );
-                    updatedSchedule[day] = {
-                      "isOpen": tempIsOpen,
-                      "hours": tempIsOpen
-                          ? hoursController.text.trim()
-                          : "Tutup (Libur)",
-                    };
-                    await _storeDoc.update({'schedule': updatedSchedule});
-                    if (context.mounted) Navigator.pop(context);
+                  onPressed: () {
+                    Navigator.pop(context);
                   },
-                  child: const Text(
-                    "Simpan",
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  child: const Text("Batal"),
+                ),
+
+                ElevatedButton(
+                  onPressed: () async {
+                    final openMinutes = _parseTime(openController.text);
+                    final closeMinutes = _parseTime(closeController.text);
+                    final newSchedule = ScheduleModel(
+                      isOpen: isOpen,
+                      openMinutes: openMinutes,
+                      closeMinutes: closeMinutes,
+                    );
+
+                    if (closeMinutes <= openMinutes) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            "Jam tutup harus lebih besar dari jam buka.",
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    await _scheduleService.updateDefaultSchedule(
+                      day,
+                      newSchedule,
+                    );
+
+                    await _loadData();
+
+                    if (mounted) {
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text("Simpan"),
                 ),
               ],
             );
           },
         );
       },
+    );
+  }
+
+  Future<void> _showAddSpecialScheduleDialog() async {
+    DateTime selectedDate = DateTime.now();
+
+    bool isOpen = true;
+
+    final openController = TextEditingController(text: "09:00");
+
+    final closeController = TextEditingController(text: "20:00");
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text("Tambah Special Schedule"),
+
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      title: Text(
+                        DateFormat(
+                          "EEEE, d MMM yyyy",
+                          "id_ID",
+                        ).format(selectedDate),
+                      ),
+                      trailing: const Icon(Icons.calendar_today),
+
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 365),
+                          ),
+                          initialDate: selectedDate,
+                        );
+
+                        if (picked != null) {
+                          setDialogState(() {
+                            selectedDate = picked;
+                          });
+                        }
+                      },
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    SwitchListTile(
+                      value: isOpen,
+                      title: const Text("Hari Buka"),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          isOpen = value;
+                        });
+                      },
+                    ),
+
+                    TextField(
+                      controller: openController,
+                      readOnly: true,
+                      onTap: () => _pickTime(context, openController),
+                      decoration: const InputDecoration(
+                        labelText: "Jam Buka",
+                        suffixIcon: Icon(Icons.access_time),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      controller: closeController,
+                      readOnly: true,
+                      onTap: () => _pickTime(context, closeController),
+                      decoration: const InputDecoration(
+                        labelText: "Jam Tutup",
+                        suffixIcon: Icon(Icons.access_time),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text("Batal"),
+                ),
+
+                ElevatedButton(
+                  onPressed: () async {
+                    final schedule = ScheduleModel(
+                      isOpen: isOpen,
+                      openMinutes: _parseTime(openController.text),
+                      closeMinutes: _parseTime(closeController.text),
+                    );
+
+                    await _scheduleService.saveSpecialSchedule(
+                      date: selectedDate,
+                      schedule: schedule,
+                    );
+
+                    await _loadData();
+
+                    if (mounted) {
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text("Simpan"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showEditSpecialScheduleDialog(Map<String, dynamic> item) async {
+    DateTime selectedDate = DateTime.parse(item["id"]);
+
+    bool isOpen = item["isOpen"];
+
+    final openController = TextEditingController(
+      text: _formatMinutes(item["openMinutes"]),
+    );
+
+    final closeController = TextEditingController(
+      text: _formatMinutes(item["closeMinutes"]),
+    );
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text("Edit Special Schedule"),
+
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      title: Text(
+                        DateFormat(
+                          "EEEE, d MMM yyyy",
+                          "id_ID",
+                        ).format(selectedDate),
+                      ),
+                    ),
+
+                    SwitchListTile(
+                      value: isOpen,
+                      title: const Text("Hari Buka"),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          isOpen = value;
+                        });
+                      },
+                    ),
+
+                    TextField(
+                      controller: openController,
+                      readOnly: true,
+                      onTap: () => _pickTime(context, openController),
+                      decoration: const InputDecoration(
+                        labelText: "Jam Buka",
+                        suffixIcon: Icon(Icons.access_time),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      controller: closeController,
+                      readOnly: true,
+                      onTap: () => _pickTime(context, closeController),
+                      decoration: const InputDecoration(
+                        labelText: "Jam Tutup",
+                        suffixIcon: Icon(Icons.access_time),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text("Batal"),
+                ),
+
+                ElevatedButton(
+                  onPressed: () async {
+                    final schedule = ScheduleModel(
+                      isOpen: isOpen,
+                      openMinutes: _parseTime(openController.text),
+                      closeMinutes: _parseTime(closeController.text),
+                    );
+
+                    await _scheduleService.saveSpecialSchedule(
+                      date: selectedDate,
+                      schedule: schedule,
+                    );
+
+                    await _loadData();
+
+                    if (mounted) {
+                      Navigator.pop(context);
+                    }
+                  },
+
+                  child: const Text("Simpan"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _pickTime(
+    BuildContext context,
+    TextEditingController controller,
+  ) async {
+    TimeOfDay initialTime = const TimeOfDay(hour: 9, minute: 0);
+
+    try {
+      final split = controller.text.split(":");
+      initialTime = TimeOfDay(
+        hour: int.parse(split[0]),
+        minute: int.parse(split[1]),
+      );
+    } catch (_) {}
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+    );
+
+    if (picked != null) {
+      controller.text =
+          "${picked.hour.toString().padLeft(2, '0')}:"
+          "${picked.minute.toString().padLeft(2, '0')}";
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF0F3773)),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildStoreCard(),
+
+          const SizedBox(height: 24),
+
+          _buildWeeklySchedule(),
+
+          const SizedBox(height: 24),
+
+          _buildSpecialSchedule(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStoreCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Store Settings",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0F3773),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text("Store Open"),
+            value: _settings!.isStoreOpen,
+            onChanged: (value) async {
+              final newSettings = _settings!.copyWith(isStoreOpen: value);
+
+              await _scheduleService.updateStoreSettings(newSettings);
+
+              setState(() {
+                _settings = newSettings;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeeklySchedule() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Weekly Schedule",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF0F3773),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        ..._days.map((day) {
+          final schedule = _defaultSchedules[day];
+
+          if (schedule == null) {
+            return const SizedBox();
+          }
+
+          final hours =
+              "${_formatMinutes(schedule.openMinutes)} - ${_formatMinutes(schedule.closeMinutes)}";
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              leading: Icon(
+                schedule.isOpen ? Icons.lock_open : Icons.lock_outline,
+              ),
+
+              title: Text(day.toUpperCase()),
+
+              subtitle: Text(schedule.isOpen ? hours : "Closed"),
+
+              trailing: IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () {
+                  _showEditScheduleDialog(day);
+                },
+              ),
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  Widget _buildSpecialSchedule() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Special Schedule",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              ElevatedButton.icon(
+                onPressed: _showAddSpecialScheduleDialog,
+                icon: const Icon(Icons.add),
+                label: const Text("Tambah"),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          if (_specialSchedules.isEmpty)
+            const Text(
+              "Belum ada special schedule",
+              style: TextStyle(color: Colors.grey),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _specialSchedules.length,
+              itemBuilder: (context, index) {
+                final item = _specialSchedules[index];
+
+                final date = item["id"];
+
+                final isOpen = item["isOpen"];
+
+                final open = _formatMinutes(item["openMinutes"]);
+
+                final close = _formatMinutes(item["closeMinutes"]);
+
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+
+                  leading: const Icon(Icons.event),
+
+                  title: Text(date),
+
+                  subtitle: Text(isOpen ? "$open - $close" : "Tutup"),
+
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () {
+                          _showEditSpecialScheduleDialog(item);
+                        },
+                      ),
+
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () async {
+                          final parsed = DateTime.parse(date);
+
+                          await _scheduleService.deleteSpecialSchedule(parsed);
+                          await _loadData();
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
     );
   }
 }

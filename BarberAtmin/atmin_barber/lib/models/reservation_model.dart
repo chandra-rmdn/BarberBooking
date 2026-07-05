@@ -17,7 +17,9 @@ class ReservationModel {
 
   final String status;
 
-  final Timestamp? createdAt;
+  final DateTime? createdAt;
+
+  final DateTime? updatedAt;
 
   ReservationModel({
     this.id,
@@ -29,6 +31,7 @@ class ReservationModel {
     required this.bookingTimeMinutes,
     required this.status,
     this.createdAt,
+    this.updatedAt,
   });
 
   factory ReservationModel.fromFirestore(DocumentSnapshot doc) {
@@ -43,7 +46,8 @@ class ReservationModel {
       bookingTime: data["bookingTime"] ?? "",
       bookingTimeMinutes: data["bookingTimeMinutes"] ?? 0,
       status: data["status"] ?? "Pending",
-      createdAt: data["createdAt"],
+      createdAt: (data["createdAt"] as Timestamp?)?.toDate(),
+      updatedAt: (data["updatedAt"] as Timestamp?)?.toDate(),
     );
   }
 
@@ -57,6 +61,7 @@ class ReservationModel {
       "bookingTimeMinutes": bookingTimeMinutes,
       "status": status,
       "createdAt": createdAt,
+      "updatedAt": updatedAt,
     };
   }
 }
