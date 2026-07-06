@@ -552,15 +552,7 @@ class _BookingsTabState extends State<_BookingsTab> {
                     color: const Color(0xFF28A745),
                     bgColor: const Color(0xFFD4EDDA),
                     onTap: () {
-                      _showConfirmationDialog(
-                        title: "Konfirmasi Reservasi",
-                        message:
-                            "Setujui reservasi atas nama\n\n${reservation.name}\n\npada ${reservation.bookingDate} ${reservation.bookingTime} ?",
-                        color: Colors.green,
-                        onConfirm: () async {
-                          await _approveReservation(reservation.id!);
-                        },
-                      );
+                      _showConfirmBookingDialog(reservation);
                     },
                   ),
 
@@ -570,15 +562,7 @@ class _BookingsTabState extends State<_BookingsTab> {
                     color: const Color(0xFFDC3545),
                     bgColor: const Color(0xFFF8D7DA),
                     onTap: () {
-                      _showConfirmationDialog(
-                        title: "Tolak Reservasi",
-                        message:
-                            "Tolak reservasi atas nama\n\n${reservation.name}\n\n?",
-                        color: Colors.red,
-                        onConfirm: () async {
-                          await _rejectReservation(reservation.id!);
-                        },
-                      );
+                      _showRejectBookingDialog(reservation);
                     },
                   ),
                 ],
@@ -615,78 +599,473 @@ class _BookingsTabState extends State<_BookingsTab> {
   }
 
   void _showReservationDetail(ReservationModel reservation) {
+    String label = reservation.status;
+    Color color = Colors.grey;
+
+    switch (reservation.status) {
+      case "Pending":
+        label = "Waiting";
+        color = const Color(0xFFFF9F43);
+        break;
+      case "Approved":
+        label = "Confirmed";
+        color = const Color(0xFF28A745);
+        break;
+      case "Rejected":
+        label = "Rejected";
+        color = const Color(0xFFDC3545);
+        break;
+      case "Completed":
+        label = "Done";
+        color = Colors.grey;
+        break;
+      case "CancelledByCustomer":
+        label = "Cancelled";
+        color = Colors.grey;
+        break;
+    }
+
+    String displayDate = reservation.bookingDate;
+
+    try {
+      displayDate = DateFormat(
+        "EEEE, d MMMM yyyy",
+        "id_ID",
+      ).format(DateTime.parse(reservation.bookingDate));
+    } catch (_) {}
+
     showDialog(
       context: context,
       builder: (_) {
-        return AlertDialog(
+        return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
           ),
-          title: const Text(
-            "Reservation Detail",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: SingleChildScrollView(
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _detailItem("Status", reservation.status),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Detail Reservasi",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: const Icon(Icons.close, color: Colors.grey),
+                    ),
+                  ],
+                ),
 
-                _detailItem("Nama", reservation.name),
+                const SizedBox(height: 20),
 
-                _detailItem("WhatsApp", reservation.phone),
-
-                _detailItem("Tanggal", reservation.bookingDate),
-
-                _detailItem("Jam", reservation.bookingTime),
-
-                if (reservation.createdAt != null)
-                  _detailItem(
-                    "Created",
-                    DateFormat(
-                      "dd MMM yyyy HH:mm",
-                    ).format(reservation.createdAt!),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFCDE8FC),
+                      width: 1.2,
+                    ),
                   ),
+                  child: Column(
+                    children: [
+                      _buildDetailRow("Status", label, valueColor: color),
+
+                      const SizedBox(height: 10),
+
+                      _buildDetailRow("Tanggal", displayDate),
+
+                      const SizedBox(height: 10),
+
+                      _buildDetailRow("Jam", reservation.bookingTime),
+
+                      const SizedBox(height: 10),
+
+                      _buildDetailRow("Atas nama", reservation.name),
+
+                      const SizedBox(height: 10),
+
+                      _buildDetailRow("Telepon", reservation.phone),
+
+                      if (reservation.createdAt != null) ...[
+                        const SizedBox(height: 10),
+                        _buildDetailRow(
+                          "Dibuat",
+                          DateFormat(
+                            "EEEE dd MMM yyyy",
+                            "id_ID",
+                          ).format(reservation.createdAt!),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      "Tutup",
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Tutup"),
-            ),
-          ],
         );
       },
     );
   }
 
-  Widget _detailItem(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 95,
+  void _showConfirmBookingDialog(ReservationModel reservation) {
+    String displayDate = reservation.bookingDate;
+
+    try {
+      displayDate = DateFormat(
+        "EEEE, d MMMM yyyy",
+        "id_ID",
+      ).format(DateTime.parse(reservation.bookingDate));
+    } catch (_) {}
+
+    showDialog(
+      context: context,
+      builder: (_) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Konfirmasi Reservasi",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+
+                const SizedBox(height: 4),
+
+                const Text(
+                  "Apakah Anda yakin ingin mengonfirmasi reservasi ini?",
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+
+                const SizedBox(height: 16),
+
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFCDE8FC),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildDetailRow("Tanggal", displayDate),
+
+                      const SizedBox(height: 10),
+
+                      _buildDetailRow("Jam", reservation.bookingTime),
+
+                      const SizedBox(height: 10),
+
+                      _buildDetailRow("Atas nama", reservation.name),
+
+                      const SizedBox(height: 10),
+
+                      _buildDetailRow("Telepon", reservation.phone),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        child: const Text(
+                          "Batal",
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          backgroundColor: const Color(0xFF0F3773),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () async {
+                          Navigator.pop(context);
+
+                          await _approveReservation(reservation.id!);
+
+                          _showTopBanner(
+                            context,
+                            message: "Reservasi berhasil dikonfirmasi.",
+                          );
+                        },
+                        child: const Text(
+                          "Konfirmasi",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showRejectBookingDialog(ReservationModel reservation) {
+    String displayDate = reservation.bookingDate;
+
+    try {
+      displayDate = DateFormat(
+        "EEEE, d MMMM yyyy",
+        "id_ID",
+      ).format(DateTime.parse(reservation.bookingDate));
+    } catch (_) {}
+
+    showDialog(
+      context: context,
+      builder: (_) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Tolak Reservasi",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+
+                const SizedBox(height: 4),
+
+                const Text(
+                  "Apakah Anda yakin ingin menolak reservasi ini?",
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+
+                const SizedBox(height: 16),
+
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFCDE8FC),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildDetailRow("Tanggal", displayDate),
+
+                      const SizedBox(height: 10),
+
+                      _buildDetailRow("Jam", reservation.bookingTime),
+
+                      const SizedBox(height: 10),
+
+                      _buildDetailRow("Atas nama", reservation.name),
+
+                      const SizedBox(height: 10),
+
+                      _buildDetailRow("Telepon", reservation.phone),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        child: const Text(
+                          "Batal",
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          backgroundColor: const Color(0xFFDC3545),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () async {
+                          Navigator.pop(context);
+
+                          await _rejectReservation(reservation.id!);
+
+                          _showTopBanner(
+                            context,
+                            message: "Reservasi berhasil ditolak.",
+                          );
+                        },
+                        child: const Text(
+                          "Tolak",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String title, String value, {Color? valueColor}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(color: Colors.black45, fontSize: 13),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: valueColor ?? Colors.black87,
+            fontSize: 13,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showTopBanner(
+    BuildContext context, {
+    required String message,
+    Color backgroundColor = const Color(0xFF22C55E),
+  }) {
+    final overlay = Overlay.of(context);
+
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 40,
+        left: 16,
+        right: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: Text(
-              title,
+              message,
               style: const TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
-
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
+        ),
       ),
     );
+
+    overlay.insert(overlayEntry);
+
+    Future.delayed(const Duration(seconds: 3), () {
+      overlayEntry.remove();
+    });
   }
 
   Future<void> _approveReservation(String reservationId) async {
@@ -852,6 +1231,7 @@ class _SchedulesTab extends StatefulWidget {
 
 class _SchedulesTabState extends State<_SchedulesTab> {
   final ScheduleService _scheduleService = ScheduleService();
+  final ReservationService _reservationService = ReservationService();
 
   StoreSettingsModel? _settings;
 
@@ -984,6 +1364,9 @@ class _SchedulesTabState extends State<_SchedulesTab> {
                       isOpen: isOpen,
                       openMinutes: openMinutes,
                       closeMinutes: closeMinutes,
+                      name: "",
+                      reason: "",
+                      type: "custom",
                     );
 
                     if (closeMinutes <= openMinutes) {
@@ -1006,6 +1389,10 @@ class _SchedulesTabState extends State<_SchedulesTab> {
 
                     if (mounted) {
                       Navigator.pop(context);
+                      _showTopBanner(
+                        context,
+                        message: "Schedule berhasil diperbarui.",
+                      );
                     }
                   },
                   child: const Text("Simpan"),
@@ -1020,11 +1407,12 @@ class _SchedulesTabState extends State<_SchedulesTab> {
 
   Future<void> _showAddSpecialScheduleDialog() async {
     DateTime selectedDate = DateTime.now();
-
     bool isOpen = true;
+    String type = "custom";
 
+    final nameController = TextEditingController();
+    final reasonController = TextEditingController();
     final openController = TextEditingController(text: "09:00");
-
     final closeController = TextEditingController(text: "20:00");
 
     await showDialog(
@@ -1068,37 +1456,76 @@ class _SchedulesTabState extends State<_SchedulesTab> {
 
                     const SizedBox(height: 12),
 
-                    SwitchListTile(
-                      value: isOpen,
-                      title: const Text("Hari Buka"),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          isOpen = value;
-                        });
-                      },
-                    ),
-
                     TextField(
-                      controller: openController,
-                      readOnly: true,
-                      onTap: () => _pickTime(context, openController),
+                      controller: nameController,
                       decoration: const InputDecoration(
-                        labelText: "Jam Buka",
-                        suffixIcon: Icon(Icons.access_time),
+                        labelText: "Nama",
+                        border: OutlineInputBorder(),
                       ),
                     ),
 
                     const SizedBox(height: 16),
 
                     TextField(
-                      controller: closeController,
-                      readOnly: true,
-                      onTap: () => _pickTime(context, closeController),
+                      controller: reasonController,
+                      maxLines: 3,
                       decoration: const InputDecoration(
-                        labelText: "Jam Tutup",
-                        suffixIcon: Icon(Icons.access_time),
+                        labelText: "Alasan",
+                        border: OutlineInputBorder(),
                       ),
                     ),
+
+                    const SizedBox(height: 12),
+
+                    Column(
+                      children: [
+                        RadioListTile<String>(
+                          value: "closed",
+                          groupValue: type,
+                          title: const Text("Closed"),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              type = value!;
+                            });
+                          },
+                        ),
+
+                        RadioListTile<String>(
+                          value: "custom",
+                          groupValue: type,
+                          title: const Text("Custom Hours"),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              type = value!;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+
+                    if (type == "custom") ...[
+                      TextField(
+                        controller: openController,
+                        readOnly: true,
+                        onTap: () => _pickTime(context, openController),
+                        decoration: const InputDecoration(
+                          labelText: "Jam Buka",
+                          suffixIcon: Icon(Icons.access_time),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      TextField(
+                        controller: closeController,
+                        readOnly: true,
+                        onTap: () => _pickTime(context, closeController),
+                        decoration: const InputDecoration(
+                          labelText: "Jam Tutup",
+                          suffixIcon: Icon(Icons.access_time),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1114,10 +1541,40 @@ class _SchedulesTabState extends State<_SchedulesTab> {
                 ElevatedButton(
                   onPressed: () async {
                     final schedule = ScheduleModel(
-                      isOpen: isOpen,
-                      openMinutes: _parseTime(openController.text),
-                      closeMinutes: _parseTime(closeController.text),
+                      name: nameController.text.trim(),
+                      reason: reasonController.text.trim(),
+                      type: type,
+
+                      isOpen: type == "custom",
+
+                      openMinutes: type == "custom"
+                          ? _parseTime(openController.text)
+                          : 0,
+
+                      closeMinutes: type == "custom"
+                          ? _parseTime(closeController.text)
+                          : 0,
                     );
+
+                    final total = await _reservationService
+                        .countActiveReservationByDate(selectedDate);
+
+                    if (total > 0) {
+                      final lanjut = await _showReservationWarning(total);
+
+                      if (!lanjut) {
+                        return;
+                      }
+                    }
+
+                    if (isOpen) {
+                      await _reservationService
+                          .cancelReservationsOutsideSchedule(
+                            date: selectedDate,
+                            openMinutes: schedule.openMinutes,
+                            closeMinutes: schedule.closeMinutes,
+                          );
+                    }
 
                     await _scheduleService.saveSpecialSchedule(
                       date: selectedDate,
@@ -1126,9 +1583,13 @@ class _SchedulesTabState extends State<_SchedulesTab> {
 
                     await _loadData();
 
-                    if (mounted) {
-                      Navigator.pop(context);
-                    }
+                    if (!mounted) return;
+
+                    Navigator.pop(context);
+                    _showTopBanner(
+                      context,
+                      message: "Special Schedule berhasil ditambahkan.",
+                    );
                   },
                   child: const Text("Simpan"),
                 ),
@@ -1142,16 +1603,17 @@ class _SchedulesTabState extends State<_SchedulesTab> {
 
   Future<void> _showEditSpecialScheduleDialog(Map<String, dynamic> item) async {
     DateTime selectedDate = DateTime.parse(item["id"]);
-
     bool isOpen = item["isOpen"];
+    String type = item["type"] ?? "custom";
 
     final openController = TextEditingController(
       text: _formatMinutes(item["openMinutes"]),
     );
-
     final closeController = TextEditingController(
       text: _formatMinutes(item["closeMinutes"]),
     );
+    final nameController = TextEditingController(text: item["name"] ?? "");
+    final reasonController = TextEditingController(text: item["reason"] ?? "");
 
     await showDialog(
       context: context,
@@ -1174,37 +1636,76 @@ class _SchedulesTabState extends State<_SchedulesTab> {
                       ),
                     ),
 
-                    SwitchListTile(
-                      value: isOpen,
-                      title: const Text("Hari Buka"),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          isOpen = value;
-                        });
-                      },
-                    ),
+                    const SizedBox(height: 12),
 
                     TextField(
-                      controller: openController,
-                      readOnly: true,
-                      onTap: () => _pickTime(context, openController),
+                      controller: nameController,
                       decoration: const InputDecoration(
-                        labelText: "Jam Buka",
-                        suffixIcon: Icon(Icons.access_time),
+                        labelText: "Nama",
+                        border: OutlineInputBorder(),
                       ),
                     ),
 
                     const SizedBox(height: 16),
 
                     TextField(
-                      controller: closeController,
-                      readOnly: true,
-                      onTap: () => _pickTime(context, closeController),
+                      controller: reasonController,
+                      maxLines: 3,
                       decoration: const InputDecoration(
-                        labelText: "Jam Tutup",
-                        suffixIcon: Icon(Icons.access_time),
+                        labelText: "Alasan",
+                        border: OutlineInputBorder(),
                       ),
                     ),
+
+                    Column(
+                      children: [
+                        RadioListTile<String>(
+                          value: "closed",
+                          groupValue: type,
+                          title: const Text("Closed"),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              type = value!;
+                            });
+                          },
+                        ),
+
+                        RadioListTile<String>(
+                          value: "custom",
+                          groupValue: type,
+                          title: const Text("Custom Hours"),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              type = value!;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+
+                    if (type == "custom") ...[
+                      TextField(
+                        controller: openController,
+                        readOnly: true,
+                        onTap: () => _pickTime(context, openController),
+                        decoration: const InputDecoration(
+                          labelText: "Jam Buka",
+                          suffixIcon: Icon(Icons.access_time),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      TextField(
+                        controller: closeController,
+                        readOnly: true,
+                        onTap: () => _pickTime(context, closeController),
+                        decoration: const InputDecoration(
+                          labelText: "Jam Tutup",
+                          suffixIcon: Icon(Icons.access_time),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1220,10 +1721,40 @@ class _SchedulesTabState extends State<_SchedulesTab> {
                 ElevatedButton(
                   onPressed: () async {
                     final schedule = ScheduleModel(
-                      isOpen: isOpen,
-                      openMinutes: _parseTime(openController.text),
-                      closeMinutes: _parseTime(closeController.text),
+                      name: nameController.text.trim(),
+                      reason: reasonController.text.trim(),
+                      type: type,
+
+                      isOpen: type == "custom",
+
+                      openMinutes: type == "custom"
+                          ? _parseTime(openController.text)
+                          : 0,
+
+                      closeMinutes: type == "custom"
+                          ? _parseTime(closeController.text)
+                          : 0,
                     );
+
+                    final total = await _reservationService
+                        .countActiveReservationByDate(selectedDate);
+
+                    if (total > 0) {
+                      final lanjut = await _showReservationWarning(total);
+
+                      if (!lanjut) {
+                        return;
+                      }
+                    }
+
+                    if (isOpen) {
+                      await _reservationService
+                          .cancelReservationsOutsideSchedule(
+                            date: selectedDate,
+                            openMinutes: schedule.openMinutes,
+                            closeMinutes: schedule.closeMinutes,
+                          );
+                    }
 
                     await _scheduleService.saveSpecialSchedule(
                       date: selectedDate,
@@ -1232,9 +1763,14 @@ class _SchedulesTabState extends State<_SchedulesTab> {
 
                     await _loadData();
 
-                    if (mounted) {
-                      Navigator.pop(context);
-                    }
+                    if (!mounted) return;
+
+                    Navigator.pop(context);
+
+                    _showTopBanner(
+                      context,
+                      message: "Special Schedule berhasil diperbarui.",
+                    );
                   },
 
                   child: const Text("Simpan"),
@@ -1245,6 +1781,37 @@ class _SchedulesTabState extends State<_SchedulesTab> {
         );
       },
     );
+  }
+
+  Future<bool> _showReservationWarning(int total) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text("Konfirmasi"),
+
+          content: Text(
+            "Terdapat $total reservasi aktif pada tanggal tersebut.\n\n"
+            "Perubahan jadwal dapat membatalkan reservasi pelanggan.\n\n"
+            "Apakah Anda yakin ingin melanjutkan?",
+          ),
+
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Batal"),
+            ),
+
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Tetap Simpan"),
+            ),
+          ],
+        );
+      },
+    );
+
+    return result ?? false;
   }
 
   Future<void> _pickTime(
@@ -1437,35 +2004,151 @@ class _SchedulesTabState extends State<_SchedulesTab> {
 
                 final close = _formatMinutes(item["closeMinutes"]);
 
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                (item["name"] ?? "").toString().isEmpty
+                                    ? "Tanpa Nama"
+                                    : item["name"],
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
 
-                  leading: const Icon(Icons.event),
+                            const SizedBox(width: 12),
 
-                  title: Text(date),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.event,
+                                  size: 18,
+                                  color: Color(0xFF0F3773),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  DateFormat(
+                                    "EEEE, d MMM yyyy",
+                                    "id_ID",
+                                  ).format(DateTime.parse(date)),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
 
-                  subtitle: Text(isOpen ? "$open - $close" : "Tutup"),
+                        if ((item["reason"] ?? "").toString().isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            item["reason"],
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
 
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () {
-                          _showEditSpecialScheduleDialog(item);
-                        },
-                      ),
+                        const SizedBox(height: 16),
 
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () async {
-                          final parsed = DateTime.parse(date);
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isOpen
+                                ? Colors.green.shade50
+                                : Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            isOpen ? "Custom Hours ($open - $close)" : "Closed",
+                            style: TextStyle(
+                              color: isOpen
+                                  ? Colors.green.shade700
+                                  : Colors.red.shade700,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
 
-                          await _scheduleService.deleteSpecialSchedule(parsed);
-                          await _loadData();
-                        },
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () {
+                                _showEditSpecialScheduleDialog(item);
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    title: const Text("Hapus Special Schedule"),
+                                    content: const Text(
+                                      "Apakah Anda yakin ingin menghapus Special Schedule ini?",
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text("Batal"),
+                                      ),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                        ),
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: const Text("Hapus"),
+                                      ),
+                                    ],
+                                  ),
+                                );
+
+                                if (confirm != true) return;
+
+                                final parsed = DateTime.parse(date);
+
+                                await _scheduleService.deleteSpecialSchedule(
+                                  parsed,
+                                );
+
+                                await _loadData();
+
+                                if (!mounted) return;
+
+                                _showTopBanner(
+                                  context,
+                                  message: "Special Schedule berhasil dihapus.",
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -1473,5 +2156,44 @@ class _SchedulesTabState extends State<_SchedulesTab> {
         ],
       ),
     );
+  }
+
+  void _showTopBanner(
+    BuildContext context, {
+    required String message,
+    Color backgroundColor = const Color(0xFF22C55E),
+  }) {
+    final overlay = Overlay.of(context);
+
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 40,
+        left: 16,
+        right: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+
+    Future.delayed(const Duration(seconds: 3), () {
+      overlayEntry.remove();
+    });
   }
 }

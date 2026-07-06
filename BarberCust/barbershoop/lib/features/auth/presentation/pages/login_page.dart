@@ -15,6 +15,8 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
+  bool _isLoading = false;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -82,15 +84,19 @@ class _LoginPageState extends State<LoginPage> {
               ),
               TextField(
                 controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.black26),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF1E3A8A)),
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
                   ),
                 ),
               ),
@@ -159,31 +165,49 @@ class _LoginPageState extends State<LoginPage> {
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      await _authService.login(
-                        email: _emailController.text.trim(),
-                        password: _passwordController.text.trim(),
-                      );
-                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ReservationPage()));
+                  onPressed: _isLoading
+                      ? null
+                      : () async {
+                          setState(() {
+                            _isLoading = true;
+                          });
 
-                    } catch (e) {
-                      // Menampilkan dialog error jika login gagal
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text("Login Failed"),
-                          content: Text(e.toString()),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text("OK"),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  },
+                          try {
+                            await _authService.login(
+                              email: _emailController.text.trim(),
+                              password: _passwordController.text.trim(),
+                            );
+
+                            if (!mounted) return;
+
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ReservationPage(),
+                              ),
+                            );
+                          } catch (e) {
+                            if (mounted) {
+                              setState(() {
+                                _isLoading = false;
+                              });
+
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text("Login Failed"),
+                                  content: Text(e.toString()),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text("OK"),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFCDE8FC),
                     elevation: 0,
@@ -191,14 +215,37 @@ class _LoginPageState extends State<LoginPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    "Log In",
-                    style: TextStyle(
-                      color: Color(0xFF0F172A),
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              "Logging In...",
+                              style: TextStyle(
+                                color: Color(0xFF0F172A),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        )
+                      : const Text(
+                          "Log In",
+                          style: TextStyle(
+                            color: Color(0xFF0F172A),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 30),
@@ -255,7 +302,9 @@ class _LoginPageState extends State<LoginPage> {
                       // Pindah ke halaman register
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const RegisterPage()),
+                        MaterialPageRoute(
+                          builder: (context) => const RegisterPage(),
+                        ),
                       );
                     },
                     child: const Text(
@@ -305,14 +354,10 @@ class SocialAssetButton extends StatelessWidget {
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min, // Menghindari tombol nabrak/melar kesamping
+          mainAxisSize:
+              MainAxisSize.min, // Menghindari tombol nabrak/melar kesamping
           children: [
-            Image.asset(
-              imagePath,
-              width: 24,
-              height: 24,
-              fit: BoxFit.contain,
-            ),
+            Image.asset(imagePath, width: 24, height: 24, fit: BoxFit.contain),
             const SizedBox(width: 12),
             Text(
               text,

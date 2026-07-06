@@ -9,6 +9,7 @@ import 'package:barbershoop/service/schedule_service.dart';
 import 'package:barbershoop/service/reservation_service.dart';
 import 'package:barbershoop/models/schedule_model.dart';
 import 'package:barbershoop/models/store_settings_model.dart';
+import 'dart:async';
 
 class ReservationPage extends StatefulWidget {
   const ReservationPage({super.key});
@@ -27,9 +28,12 @@ class _ReservationPageState extends State<ReservationPage> {
   DateTime? _selectedDay;
 
   String? _confirmedTime;
-
-  // Jam yang sudah dipesan orang lain di tanggal yang dipilih (dari Firestore)
   List<String> _bookedTimes = [];
+
+  StreamSubscription<QuerySnapshot>? _bookingListener;
+  StreamSubscription<DocumentSnapshot>? _storeListener;
+  StreamSubscription<DocumentSnapshot>? _defaultScheduleListener;
+  StreamSubscription<DocumentSnapshot>? _specialScheduleListener;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -50,8 +54,18 @@ class _ReservationPageState extends State<ReservationPage> {
     _focusedDay = today;
 
     _loadUserData();
-    _loadBookedTimes(today);
+    _listenBookedTimes(today);
+    _listenSchedule(today);
     _loadSchedule(today);
+  }
+
+  @override
+  void dispose() {
+    _bookingListener?.cancel();
+    _storeListener?.cancel();
+    _defaultScheduleListener?.cancel();
+    _specialScheduleListener?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadUserData() async {
@@ -68,65 +82,115 @@ class _ReservationPageState extends State<ReservationPage> {
     } catch (_) {}
   }
 
-  // Load jam yang sudah dipesan orang lain berdasarkan tanggal yang dipilih
-  Future<void> _loadBookedTimes(DateTime date) async {
-    final formattedDate = DateFormat('yyyy-MM-dd').format(date);
-    final uid = _auth.currentUser?.uid;
-    try {
-      final snapshot = await _firestore
-          .collection('reservations')
-          .where('bookingDate', isEqualTo: formattedDate)
-          .where('status', whereIn: ['Pending', 'Disetujui'])
-          .get();
+  void _listenBookedTimes(DateTime date) {
+    _bookingListener?.cancel();
 
-      final booked = snapshot.docs
-          .where((doc) => doc.data()['userId'] != uid) // exclude punya sendiri
-          .map((doc) => doc.data()['bookingTime'] as String)
-          .toList();
+    final formattedDate =
+        "${date.year.toString().padLeft(4, '0')}-"
+        "${date.month.toString().padLeft(2, '0')}-"
+        "${date.day.toString().padLeft(2, '0')}";
 
-      if (mounted) {
-        setState(() {
-          _bookedTimes = booked;
+    _bookingListener = _firestore
+        .collection('reservations')
+        .where('bookingDate', isEqualTo: formattedDate)
+        .where('status', whereIn: ['Pending', 'Approved'])
+        .snapshots()
+        .listen((snapshot) {
+          print("DOC COUNT = ${snapshot.docs.length}");
+
+          for (final doc in snapshot.docs) {
+            print(doc.data());
+          }
+
+          if (!mounted) return;
+
+          setState(() {
+            _bookedTimes = snapshot.docs
+                .map((doc) => doc['bookingTime'] as String)
+                .toList();
+          });
         });
-      }
-    } catch (_) {}
+  }
+
+  void _listenSchedule(DateTime date) {
+    _storeListener?.cancel();
+    _defaultScheduleListener?.cancel();
+    _specialScheduleListener?.cancel();
+
+    final weekdayName = DateFormat('EEEE', 'en_US').format(date).toLowerCase();
+
+    debugPrint("weekday listener = $weekdayName");
+
+    final specialId =
+        "${date.year.toString().padLeft(4, '0')}-"
+        "${date.month.toString().padLeft(2, '0')}-"
+        "${date.day.toString().padLeft(2, '0')}";
+
+    _storeListener = FirebaseFirestore.instance
+        .collection("store_settings")
+        .doc("main")
+        .snapshots()
+        .listen((_) async {
+          if (!mounted) return;
+
+          if (_selectedDay != null) {
+            await _loadSchedule(_selectedDay!);
+          }
+        });
+
+    _defaultScheduleListener = FirebaseFirestore.instance
+        .collection("default_schedule")
+        .doc(weekdayName)
+        .snapshots()
+        .listen((event) async {
+          debugPrint("========== DEFAULT LISTENER ==========");
+          debugPrint("doc id     : ${event.id}");
+          debugPrint("exists     : ${event.exists}");
+          debugPrint("data       : ${event.data()}");
+          debugPrint("selected   : $_selectedDay");
+          debugPrint("listener   : $weekdayName");
+
+          if (!mounted) return;
+
+          if (_selectedDay != null) {
+            await _loadSchedule(_selectedDay!);
+          }
+        });
+
+    _specialScheduleListener = FirebaseFirestore.instance
+        .collection("special_schedule")
+        .doc(specialId)
+        .snapshots()
+        .listen((_) async {
+          if (!mounted) return;
+
+          if (_selectedDay != null) {
+            await _loadSchedule(_selectedDay!);
+          }
+        });
   }
 
   Future<void> _loadSchedule(DateTime date) async {
     final settings = await _scheduleService.getStoreSettings();
-
     final schedule = await _scheduleService.getSchedule(date);
 
-    if (schedule == null) {
-      setState(() {
-        _availableTimes = [];
-      });
+    List<String> slots = [];
 
-      return;
+    if (schedule != null && schedule.isOpen) {
+      slots = _scheduleService
+          .generateSlots(
+            openMinutes: schedule.openMinutes,
+            closeMinutes: schedule.closeMinutes,
+            slotDurationMinutes: settings.slotDurationMinutes,
+          )
+          .map((e) => _scheduleService.formatMinutes(e))
+          .toList();
     }
-
-    if (!schedule.isOpen) {
-      setState(() {
-        _availableTimes = [];
-      });
-
-      return;
-    }
-
-    final slots = _scheduleService.generateSlots(
-      openMinutes: schedule.openMinutes,
-      closeMinutes: schedule.closeMinutes,
-      slotDurationMinutes: settings.slotDurationMinutes,
-    );
 
     setState(() {
       _storeSettings = settings;
-
       _currentSchedule = schedule;
-
-      _availableTimes = slots
-          .map((e) => _scheduleService.formatMinutes(e))
-          .toList();
+      _availableTimes = slots;
     });
   }
 
@@ -134,14 +198,17 @@ class _ReservationPageState extends State<ReservationPage> {
   Stream<int> _reservationCountStream() {
     final userId = _auth.currentUser?.uid;
     if (userId == null) return Stream.value(0);
+
     return _firestore
         .collection('reservations')
         .where('userId', isEqualTo: userId)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs
-              .where((doc) => (doc.data()['status'] ?? '') != 'Cancelled')
-              .length,
+          (snapshot) => snapshot.docs.where((doc) {
+            final status = doc.data()['status'] ?? '';
+
+            return status == 'Pending' || status == 'Approved';
+          }).length,
         );
   }
 
@@ -366,18 +433,17 @@ class _ReservationPageState extends State<ReservationPage> {
   Widget _buildReservationTabContent() {
     return Builder(
       builder: (context) {
-        final bool isStoreOpen =
-            _currentSchedule != null && (_currentSchedule!.isOpen);
+        final bool isGlobalStoreOpen = _storeSettings?.isStoreOpen ?? false;
+        final bool isSelectedDateOpen =
+            _currentSchedule != null && _currentSchedule!.isOpen;
 
         // Kalau toko baru tutup, reset semua state pilihan biar jam gak bisa diklik
-        if (!isStoreOpen && (_isCalendarOpen || _isTimeBoxVisible)) {
+        if (!isGlobalStoreOpen && (_isCalendarOpen || _isTimeBoxVisible)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               setState(() {
                 _isCalendarOpen = false;
                 _isTimeBoxVisible = false;
-                _selectedDay = null;
-                _confirmedTime = null;
               });
             }
           });
@@ -386,7 +452,7 @@ class _ReservationPageState extends State<ReservationPage> {
         return Column(
           children: [
             // --- BANNER TOKO TUTUP ---
-            if (!isStoreOpen)
+            if (!isGlobalStoreOpen)
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 16),
@@ -416,7 +482,7 @@ class _ReservationPageState extends State<ReservationPage> {
 
             // --- KOP SELEKSI TANGGAL ---
             GestureDetector(
-              onTap: !isStoreOpen
+              onTap: !isGlobalStoreOpen
                   ? null // kalau toko tutup, gak bisa diklik
                   : () {
                       setState(() {
@@ -427,7 +493,9 @@ class _ReservationPageState extends State<ReservationPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: !isStoreOpen ? Colors.grey.shade200 : Colors.white,
+                  color: !isGlobalStoreOpen
+                      ? Colors.grey.shade200
+                      : Colors.white,
                   borderRadius: _isCalendarOpen
                       ? const BorderRadius.vertical(top: Radius.circular(16))
                       : BorderRadius.circular(16),
@@ -439,7 +507,7 @@ class _ReservationPageState extends State<ReservationPage> {
                       children: [
                         Icon(
                           Icons.calendar_month,
-                          color: !isStoreOpen
+                          color: !isGlobalStoreOpen
                               ? Colors.grey
                               : const Color(0xFF0F3773),
                         ),
@@ -454,7 +522,7 @@ class _ReservationPageState extends State<ReservationPage> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: !isStoreOpen
+                            color: !isGlobalStoreOpen
                                 ? Colors.grey
                                 : const Color(0xFF0F172A),
                           ),
@@ -517,7 +585,8 @@ class _ReservationPageState extends State<ReservationPage> {
                           _focusedDay = focusedDay;
                           _bookedTimes = []; // reset dulu sambil nunggu load
                         });
-                        await _loadBookedTimes(selectedDay);
+                        _listenBookedTimes(selectedDay);
+                        _listenSchedule(selectedDay);
                         await _loadSchedule(selectedDay);
                       },
 
@@ -640,6 +709,27 @@ class _ReservationPageState extends State<ReservationPage> {
                       ],
                     ),
                     const SizedBox(height: 16),
+
+                    if (isGlobalStoreOpen &&
+                        _selectedDay != null &&
+                        !isSelectedDateOpen)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(top: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFDECEC),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          "Barbershop tutup pada tanggal yang dipilih.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0xFFB91C1C),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
 
                     GridView.builder(
                       shrinkWrap: true,
@@ -1098,9 +1188,6 @@ class _ReservationPageState extends State<ReservationPage> {
                       ),
                     ),
                     onPressed: () {
-                      setState(() {
-                        _confirmedTime = time;
-                      });
                       Navigator.pop(context);
                     },
                     child: const Text(

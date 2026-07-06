@@ -65,6 +65,71 @@ class ReservationService {
   }
 
   /// ==========================================================
+  /// CANCEL BY ADMIN
+  /// =========================================================
+
+  Future<void> cancelReservationsByAdmin({required String bookingDate}) async {
+    final snapshot = await _firestore
+        .collection("reservations")
+        .where("bookingDate", isEqualTo: bookingDate)
+        .get();
+
+    final batch = _firestore.batch();
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+
+      final status = data["status"];
+
+      if (status == "Pending" || status == "Approved") {
+        batch.update(doc.reference, {
+          "status": "CancelledByAdmin",
+          "updatedAt": FieldValue.serverTimestamp(),
+          "cancelledAt": FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    await batch.commit();
+  }
+
+  Future<void> cancelReservationsOutsideSchedule({
+    required DateTime date,
+    required int openMinutes,
+    required int closeMinutes,
+  }) async {
+    final bookingDate =
+        "${date.year.toString().padLeft(4, '0')}-"
+        "${date.month.toString().padLeft(2, '0')}-"
+        "${date.day.toString().padLeft(2, '0')}";
+
+    final snapshot = await _firestore
+        .collection("reservations")
+        .where("bookingDate", isEqualTo: bookingDate)
+        .get();
+
+    final batch = _firestore.batch();
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+
+      final status = (data["status"] ?? "").toString().toLowerCase();
+
+      if (status != "pending" && status != "confirmed") {
+        continue;
+      }
+
+      final bookingMinutes = data["bookingTimeMinutes"] as int;
+
+      if (bookingMinutes < openMinutes || bookingMinutes >= closeMinutes) {
+        batch.update(doc.reference, {"status": "CancelledByAdmin"});
+      }
+    }
+
+    await batch.commit();
+  }
+
+  /// ==========================================================
   /// APPROVE
   /// ==========================================================
   Future<void> approveReservation(String reservationId) async {
@@ -161,5 +226,23 @@ class ReservationService {
     if (!doc.exists) return null;
 
     return ReservationModel.fromFirestore(doc);
+  }
+
+  Future<int> countActiveReservationByDate(DateTime date) async {
+    final bookingDate =
+        "${date.year.toString().padLeft(4, '0')}-"
+        "${date.month.toString().padLeft(2, '0')}-"
+        "${date.day.toString().padLeft(2, '0')}";
+
+    final snapshot = await _firestore
+        .collection("reservations")
+        .where("bookingDate", isEqualTo: bookingDate)
+        .get();
+
+    return snapshot.docs.where((doc) {
+      final status = (doc["status"] ?? "").toString().toLowerCase();
+
+      return status == "pending" || status == "confirmed";
+    }).length;
   }
 }

@@ -17,6 +17,10 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -81,8 +85,21 @@ class _RegisterPageState extends State<RegisterPage> {
               _buildInputLabel("Password"),
               TextField(
                 controller: _passwordController,
-                obscureText: true,
-                decoration: _buildInputDecoration(),
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -90,8 +107,21 @@ class _RegisterPageState extends State<RegisterPage> {
               _buildInputLabel("Confirm Password"),
               TextField(
                 controller: _confirmPasswordController,
-                obscureText: true,
-                decoration: _buildInputDecoration(),
+                obscureText: _obscureConfirmPassword,
+                decoration: InputDecoration(
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureConfirmPassword = !_obscureConfirmPassword;
+                      });
+                    },
+                  ),
+                ),
               ),
               const SizedBox(height: 50),
 
@@ -100,50 +130,144 @@ class _RegisterPageState extends State<RegisterPage> {
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      await _authService.register(
-                        email: _emailController.text,
-                        password: _passwordController.text,
-                        name: _nameController.text,
-                        phone: _phoneController.text,
-                      );
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => const LoginPage()),
-                      );
-                    } catch (e) {
-                      // Menampilkan dialog error jika register gagal
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text("Registration Failed"),
-                          content: Text(e.toString()),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text("OK"),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  },
+                  onPressed: _isLoading
+                      ? null
+                      : () async {
+                          setState(() {
+                            _isLoading = true;
+                          });
+
+                          if (_passwordController.text.length < 8) {
+                            if (!mounted) return;
+
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text("Error"),
+                                content: const Text(
+                                  "Password must be at least 8 characters long.",
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text("OK"),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            setState(() {
+                              _isLoading = false;
+                            });
+                            return;
+                          }
+
+                          if (_passwordController.text !=
+                              _confirmPasswordController.text) {
+                            if (!mounted) return;
+
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text("Error"),
+                                content: const Text(
+                                  "Passwords do not match. Please try again.",
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text("OK"),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            setState(() {
+                              _isLoading = false;
+                            });
+                            return;
+                          }
+
+                          try {
+                            await _authService.register(
+                              email: _emailController.text,
+                              password: _passwordController.text,
+                              name: _nameController.text,
+                              phone: _phoneController.text,
+                            );
+
+                            if (!mounted) return;
+
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const LoginPage(),
+                              ),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text("Registration Failed"),
+                                content: Text(e.toString()),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text("OK"),
+                                  ),
+                                ],
+                              ),
+                            );
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _isLoading = false;
+                              });
+                            }
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFCDE8FC), // Biru muda lembut
+                    backgroundColor: const Color(
+                      0xFFCDE8FC,
+                    ), // Biru muda lembut
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    "Sign Up",
-                    style: TextStyle(
-                      color: Color(0xFF1E3A8A), // Teks biru tua gelap
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              "Signing Up...",
+                              style: TextStyle(
+                                color: Color(0xFF0F172A),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        )
+                      : const Text(
+                          "Sign Up",
+                          style: TextStyle(
+                            color: Color(0xFF1E3A8A), // Teks biru tua gelap
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 40),
@@ -165,7 +289,9 @@ class _RegisterPageState extends State<RegisterPage> {
                       // Pindah ke halaman login
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const LoginPage()),
+                        MaterialPageRoute(
+                          builder: (context) => const LoginPage(),
+                        ),
                       );
                     },
                     child: const Text(

@@ -1,4 +1,6 @@
 class StoreSettingsModel {
+  final bool isStoreOpen;
+
   final int bookingBufferMinutes;
 
   final int slotDurationMinutes;
@@ -6,6 +8,7 @@ class StoreSettingsModel {
   final int maxBookingDays;
 
   StoreSettingsModel({
+    required this.isStoreOpen,
     required this.bookingBufferMinutes,
     required this.slotDurationMinutes,
     required this.maxBookingDays,
@@ -13,6 +16,7 @@ class StoreSettingsModel {
 
   factory StoreSettingsModel.fromMap(Map<String, dynamic> map) {
     return StoreSettingsModel(
+      isStoreOpen: map["isStoreOpen"] ?? true,
       bookingBufferMinutes: map["bookingBufferMinutes"] ?? 30,
       slotDurationMinutes: map["slotDurationMinutes"] ?? 30,
       maxBookingDays: map["maxBookingDays"] ?? 7,
@@ -21,6 +25,8 @@ class StoreSettingsModel {
 
   Map<String, dynamic> toMap() {
     return {
+      "isStoreOpen": isStoreOpen,
+      
       "bookingBufferMinutes": bookingBufferMinutes,
 
       "slotDurationMinutes": slotDurationMinutes,

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/schedule_model.dart';
 import '../../models/store_settings_model.dart';
+import 'package:flutter/material.dart';
 
 class ScheduleService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -46,6 +47,8 @@ class ScheduleService {
   /// ==========================================================
 
   Future<void> updateDefaultSchedule(String day, ScheduleModel schedule) async {
+    debugPrint("UPDATE DEFAULT : $day");
+    debugPrint(schedule.toMap().toString());
     await _firestore
         .collection("default_schedule")
         .doc(day)
@@ -97,6 +100,37 @@ class ScheduleService {
         .collection("special_schedule")
         .doc(id)
         .set(schedule.toMap());
+
+    if (!schedule.isOpen) {
+      await _cancelReservationsOnDate(id);
+    }
+  }
+
+  /// ==========================================================
+  /// CANCEL RESERVATIONS ON DATE
+  /// ==========================================================
+
+  Future<void> _cancelReservationsOnDate(String bookingDate) async {
+    final snapshot = await _firestore
+        .collection("reservations")
+        .where("bookingDate", isEqualTo: bookingDate)
+        .get();
+
+    final batch = _firestore.batch();
+
+    for (final doc in snapshot.docs) {
+      final status = doc["status"];
+
+      if (status == "Pending" || status == "Approved") {
+        batch.update(doc.reference, {
+          "status": "CancelledByAdmin",
+          "updatedAt": FieldValue.serverTimestamp(),
+          "cancelledAt": FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    await batch.commit();
   }
 
   /// ==========================================================

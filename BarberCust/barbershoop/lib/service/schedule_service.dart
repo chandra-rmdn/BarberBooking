@@ -20,6 +20,17 @@ class ScheduleService {
   }
 
   /// ==========================================================
+  /// UPDATE STORE SETTINGS
+  /// ==========================================================
+
+  Future<void> updateStoreSettings(StoreSettingsModel settings) async {
+    await _firestore
+        .collection("store_settings")
+        .doc("main")
+        .update(settings.toMap());
+  }
+
+  /// ==========================================================
   /// DEFAULT SCHEDULE
   /// ==========================================================
 
@@ -28,6 +39,17 @@ class ScheduleService {
     if (!doc.exists) return null;
 
     return ScheduleModel.fromMap(doc.data()!);
+  }
+
+  /// ==========================================================
+  /// UPDATE DEFAULT SCHEDULE
+  /// ==========================================================
+
+  Future<void> updateDefaultSchedule(String day, ScheduleModel schedule) async {
+    await _firestore
+        .collection("default_schedule")
+        .doc(day)
+        .set(schedule.toMap());
   }
 
   /// ==========================================================
@@ -76,12 +98,21 @@ class ScheduleService {
   /// ==========================================================
 
   Future<ScheduleModel?> getSchedule(DateTime date) async {
+    final settings = await getStoreSettings();
+
+    // Prioritas 1 : Store Open (Global)
+    if (!settings.isStoreOpen) {
+      return ScheduleModel(isOpen: false, openMinutes: 0, closeMinutes: 0);
+    }
+
+    // Prioritas 2 : Special Schedule
     final special = await getSpecialSchedule(date);
 
     if (special != null) {
       return special;
     }
 
+    // Prioritas 3 : Weekly Schedule
     final day = _dayName(date);
 
     return await getDefaultSchedule(day);
