@@ -1,5 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Lama waktu reservasi berstatus "Pending" sebelum otomatis dianggap
+/// kadaluarsa karena barbershop belum sempat approve/reject.
+/// Ubah durasinya di sini kalau mau beda.
+const Duration kReservationConfirmationWindow = Duration(minutes: 15);
+
 class ReservationModel {
   final String? id;
 
@@ -30,6 +35,21 @@ class ReservationModel {
     required this.status,
     this.createdAt,
   });
+
+  /// Batas waktu sampai reservasi ini harus dikonfirmasi (approve/reject)
+  /// oleh barbershop. Null kalau createdAt belum ke-resolve dari server
+  /// (biasanya sesaat setelah dibuat, sebelum serverTimestamp() menetap).
+  DateTime? get expiresAt {
+    if (createdAt == null) return null;
+    return createdAt!.toDate().add(kReservationConfirmationWindow);
+  }
+
+  /// True kalau reservasi masih Pending dan sudah lewat batas waktu.
+  bool get isExpired {
+    final exp = expiresAt;
+    if (status != 'Pending' || exp == null) return false;
+    return DateTime.now().isAfter(exp);
+  }
 
   factory ReservationModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;

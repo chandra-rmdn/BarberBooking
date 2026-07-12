@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:barbershoop/models/reservation_model.dart';
 import '../../../../service/reservation_service.dart';
+import 'package:barbershoop/widgets/countdown_timer.dart';
 
 class ReservasiSayaTab extends StatefulWidget {
   final VoidCallback onBuatReservasiPressed;
@@ -122,9 +123,10 @@ class ReservasiSayaTabState extends State<ReservasiSayaTab> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFCDE8FC),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F6FA),
                     shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFE5E9F0)),
                   ),
                   child: const Icon(
                     Icons.calendar_today_outlined,
@@ -152,13 +154,17 @@ class ReservasiSayaTabState extends State<ReservasiSayaTab> {
                   onPressed: widget.onBuatReservasiPressed,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0F3773),
-                    foregroundColor: Colors.white,
+                    foregroundColor: const Color(0xFFF5A623),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 32,
                       vertical: 14,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(100),
+                      side: const BorderSide(
+                        color: Color(0xFFF5A623),
+                        width: 1.5,
+                      ),
                     ),
                     elevation: 0,
                   ),
@@ -201,7 +207,7 @@ class ReservasiSayaTabState extends State<ReservasiSayaTab> {
     switch (status) {
       case 'Pending':
         label = "Waiting";
-        color = const Color(0xFFFF9F43);
+        color = const Color(0xFFF5A623);
         break;
 
       case 'Approved':
@@ -224,20 +230,27 @@ class ReservasiSayaTabState extends State<ReservasiSayaTab> {
         color = const Color(0xFF6B7280);
         break;
 
+      case 'Expired':
+        label = "Expired";
+        color = const Color(0xFF6B7280);
+        break;
+
       default:
         label = status;
         color = const Color(0xFF0F3773);
     }
 
     return GestureDetector(
+      key: ValueKey(reservation.id),
       onTap: () =>
           _showDetailDialog(context, reservation, label, color, displayDate),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFFEAF4FE),
+          color: const Color(0xFFF4F6FA),
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE5E9F0)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,6 +297,18 @@ class ReservasiSayaTabState extends State<ReservasiSayaTab> {
                 ),
               ],
             ),
+            if (status == 'Pending' && reservation.expiresAt != null) ...[
+              const SizedBox(height: 8),
+              CountdownTimer(
+                expiredAt: reservation.expiresAt!,
+                urgentThreshold: const Duration(minutes: 3),
+                onExpired: () {
+                  if (reservation.id != null) {
+                    _reservationService.expireReservation(reservation.id!);
+                  }
+                },
+              ),
+            ],
             const SizedBox(height: 10),
             Text(
               displayDate,
@@ -357,7 +382,7 @@ class ReservasiSayaTabState extends State<ReservasiSayaTab> {
                     color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: const Color(0xFFCDE8FC),
+                      color: const Color(0xFFE5E9F0),
                       width: 1.2,
                     ),
                   ),

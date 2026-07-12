@@ -1,1 +1,38 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"reservation-db-39a59","appId":"1:394175121263:android:1d3ed6cefb5bc8d8ea8a9a","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"reservation-db-39a59","configurations":{"android":"1:394175121263:android:1d3ed6cefb5bc8d8ea8a9a","ios":"1:394175121263:ios:7fe8307ecfaa7c96ea8a9a","macos":"1:394175121263:ios:7fe8307ecfaa7c96ea8a9a","web":"1:394175121263:web:67e648c57a4ffbe4ea8a9a","windows":"1:394175121263:web:f5186e1613897426ea8a9a"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "reservation-db-39a59",
+          "appId": "1:394175121263:android:1d3ed6cefb5bc8d8ea8a9a",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "reservation-db-39a59",
+          "configurations": {
+            "android": "1:394175121263:android:1d3ed6cefb5bc8d8ea8a9a",
+            "ios": "1:394175121263:ios:7fe8307ecfaa7c96ea8a9a",
+            "macos": "1:394175121263:ios:7fe8307ecfaa7c96ea8a9a",
+            "web": "1:394175121263:web:67e648c57a4ffbe4ea8a9a",
+            "windows": "1:394175121263:web:f5186e1613897426ea8a9a"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}

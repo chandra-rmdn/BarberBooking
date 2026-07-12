@@ -54,6 +54,29 @@ class ReservationService {
   }
 
   /// ==========================================================
+  /// AUTO EXPIRE (dipanggil dari UI saat countdown di card habis)
+  /// ==========================================================
+  Future<void> expireReservation(String reservationId) async {
+    final doc = await _firestore
+        .collection("reservations")
+        .doc(reservationId)
+        .get();
+
+    if (!doc.exists) return;
+
+    // Guard: hanya ubah ke Expired kalau statusnya masih Pending.
+    // Menghindari race condition kalau barbershop keburu approve/reject
+    // tepat saat waktu habis di sisi customer.
+    final currentStatus = doc.data()?['status'];
+    if (currentStatus != 'Pending') return;
+
+    await _firestore.collection("reservations").doc(reservationId).update({
+      "status": "Expired",
+      "updatedAt": FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// ==========================================================
   /// CANCEL BY CUSTOMER
   /// ==========================================================
   Future<void> cancelReservation(String reservationId) async {

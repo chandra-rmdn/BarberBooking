@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -38,6 +39,14 @@ class AuthService {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      final token = await FirebaseMessaging.instance.getToken();
+
+      if (token != null) {
+        await _firestore.collection('users').doc(credential.user!.uid).set({
+          'fcmToken': token,
+        }, SetOptions(merge: true));
+      }
+
       return credential;
     } on FirebaseAuthException catch (e) {
       throw _handleAuthError(e);
@@ -55,7 +64,18 @@ class AuthService {
         password: password.trim(),
       );
 
-      final doc = await _firestore.collection('users').doc(credential.user!.uid).get();
+      final token = await FirebaseMessaging.instance.getToken();
+
+      if (token != null) {
+        await _firestore.collection('users').doc(credential.user!.uid).set({
+          'fcmToken': token,
+        }, SetOptions(merge: true));
+      }
+
+      final doc = await _firestore
+          .collection('users')
+          .doc(credential.user!.uid)
+          .get();
       if (doc.exists) {
         String role = doc.data()?['role'] ?? 'customer';
         if (role != 'customer') {

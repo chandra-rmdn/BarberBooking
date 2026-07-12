@@ -53,7 +53,9 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text("Edit Profil"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -111,7 +113,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   );
                 }
               },
-              child: const Text("Simpan", style: TextStyle(color: Colors.white)),
+              child: const Text(
+                "Simpan",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -122,7 +127,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFCDE8FC),
+      backgroundColor: const Color(0xFFF4F6FA),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -135,12 +140,16 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   IconButton(
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withOpacity(0.6),
+                      backgroundColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFFE5E9F0)),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    icon: const Icon(Icons.arrow_back, color: Color(0xFF0F3773)),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: Color(0xFF0F172A),
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 16),
@@ -149,7 +158,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F3773),
+                      color: Color(0xFF0F172A),
                     ),
                   ),
                 ],
@@ -160,17 +169,39 @@ class _ProfilePageState extends State<ProfilePage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF0F3773)))
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF0F3773),
+                        ),
+                      )
                     : Row(
                         children: [
-                          const CircleAvatar(
-                            radius: 28,
-                            backgroundColor: Colors.white,
-                            child: Icon(Icons.person, color: Color(0xFF0F3773), size: 32),
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFFE5E9F0),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.person_outline,
+                              color: Color(0xFF0F3773),
+                              size: 30,
+                            ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -188,18 +219,27 @@ class _ProfilePageState extends State<ProfilePage> {
                                 const SizedBox(height: 2),
                                 Text(
                                   _phone.isEmpty ? "-" : _phone,
-                                  style: const TextStyle(fontSize: 14, color: Colors.black54),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.black54,
+                                  ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   _email,
-                                  style: const TextStyle(fontSize: 12, color: Colors.black38),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black38,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.edit_note, color: Color(0xFF0F172A)),
+                            icon: const Icon(
+                              Icons.edit_note,
+                              color: Color(0xFF0F172A),
+                            ),
                             onPressed: _showEditDialog,
                           ),
                         ],
@@ -219,28 +259,46 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
                       children: const [
-                        Icon(Icons.notifications_none, color: Color(0xFF0F3773)),
+                        Icon(
+                          Icons.notifications_none,
+                          color: Color(0xFF0F3773),
+                        ),
                         SizedBox(width: 12),
                         Text(
                           "Push Notifications",
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF0F172A)),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF0F172A),
+                          ),
                         ),
                       ],
                     ),
                     Switch(
                       value: _isNotificationOn,
-                      activeColor: const Color(0xFF0F3773),
-                      onChanged: (value) => setState(() => _isNotificationOn = value),
+                      activeColor: const Color(0xFFF5A623),
+                      onChanged: (value) =>
+                          setState(() => _isNotificationOn = value),
                     ),
                   ],
                 ),
@@ -260,27 +318,46 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 8),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Column(
                   children: [
                     _buildMenuTile(
                       icon: Icons.description_outlined,
                       title: "Privacy Policy",
-                      onTap: () => _bukaHalamanDetail(context, "Privacy Policy"),
+                      onTap: () =>
+                          _bukaHalamanDetail(context, "Privacy Policy"),
                     ),
-                    const Divider(height: 1, indent: 16, endIndent: 16, color: Colors.black12),
+                    const Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: Colors.black12,
+                    ),
                     _buildMenuTile(
                       icon: Icons.help_outline,
                       title: "Help & FAQ",
                       onTap: () => _bukaHalamanDetail(context, "Help & FAQ"),
                     ),
-                    const Divider(height: 1, indent: 16, endIndent: 16, color: Colors.black12),
+                    const Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: Colors.black12,
+                    ),
                     _buildMenuTile(
                       icon: Icons.info_outline,
                       title: "About Bahlil Barber",
-                      onTap: () => _bukaHalamanDetail(context, "About Bahlil Barber"),
+                      onTap: () =>
+                          _bukaHalamanDetail(context, "About Bahlil Barber"),
                     ),
                   ],
                 ),
@@ -304,7 +381,10 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(context, true),
-                            child: const Text("Logout", style: TextStyle(color: Colors.red)),
+                            child: const Text(
+                              "Logout",
+                              style: TextStyle(color: Colors.red),
+                            ),
                           ),
                         ],
                       ),
@@ -317,7 +397,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => const LoginPage()),
+                      MaterialPageRoute(
+                        builder: (context) => const LoginPage(),
+                      ),
                       (route) => false,
                     );
                   },
@@ -350,12 +432,20 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildMenuTile({required IconData icon, required String title, required VoidCallback onTap}) {
+  Widget _buildMenuTile({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
     return ListTile(
       leading: Icon(icon, color: const Color(0xFF0F3773)),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF0F172A)),
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: Color(0xFF0F172A),
+        ),
       ),
       trailing: const Icon(Icons.chevron_right, color: Colors.black45),
       onTap: onTap,

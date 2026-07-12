@@ -11,14 +11,14 @@ import 'package:barbershoop/models/schedule_model.dart';
 import 'package:barbershoop/models/store_settings_model.dart';
 import 'dart:async';
 
-class ReservationPage extends StatefulWidget {
-  const ReservationPage({super.key});
+class ReservationPageNew extends StatefulWidget {
+  const ReservationPageNew({super.key});
 
   @override
-  State<ReservationPage> createState() => _ReservationPageState();
+  State<ReservationPageNew> createState() => _ReservationPageState();
 }
 
-class _ReservationPageState extends State<ReservationPage> {
+class _ReservationPageState extends State<ReservationPageNew> {
   int _currentTabIndex = 0; // Logika kamu yang ini sudah mantap!
 
   bool _isCalendarOpen = false;
