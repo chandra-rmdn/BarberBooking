@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -11,6 +12,53 @@ class AuthService {
 
   // Stream perubahan status login
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  Future<UserCredential?> loginWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return null;
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+
+      // Cek apakah dokumen user sudah ada di Firestore
+      final doc = await _firestore
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      // Kalau belum ada, buat dokumen baru
+      if (!doc.exists) {
+        await _firestore.collection('users').doc(userCredential.user!.uid).set({
+          'uid': userCredential.user!.uid,
+          'name': userCredential.user!.displayName ?? '',
+          'email': userCredential.user!.email ?? '',
+          'phone': '',
+          'role': 'customer',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Update FCM token
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await _firestore.collection('users').doc(userCredential.user!.uid).set({
+          'fcmToken': token,
+        }, SetOptions(merge: true));
+      }
+
+      return userCredential;
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthError(e);
+    }
+  }
 
   // --- REGISTER dengan Email & Password ---
   Future<UserCredential?> register({

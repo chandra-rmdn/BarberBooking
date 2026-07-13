@@ -15,7 +15,6 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isLoading = true;
 
   String _name = '';
-  String _phone = '';
   String _email = '';
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -28,100 +27,42 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadUserData() async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
+    final user = _auth.currentUser;
+    if (user == null) return;
     try {
-      final doc = await _firestore.collection('users').doc(uid).get();
-      if (doc.exists && mounted) {
-        setState(() {
-          _name = doc.data()?['name'] ?? '';
-          _phone = doc.data()?['phone'] ?? '';
-          _email = doc.data()?['email'] ?? _auth.currentUser?.email ?? '';
-          _isLoading = false;
-        });
+      final docRef = _firestore.collection('users').doc(user.uid);
+      final doc = await docRef.get();
+
+      if (doc.exists) {
+        if (mounted) {
+          setState(() {
+            _name = doc.data()?['name'] ?? '';
+            _email = doc.data()?['email'] ?? user.email ?? '';
+            _isLoading = false;
+          });
+        }
+      } else {
+        // Dokumen belum ada (misalnya akun baru login lewat Google).
+        // Buat dokumennya dari data akun, biar konsisten ke depannya.
+        final fallbackName = user.displayName ?? '';
+        final fallbackEmail = user.email ?? '';
+
+        await docRef.set({
+          'name': fallbackName,
+          'email': fallbackEmail,
+        }, SetOptions(merge: true));
+
+        if (mounted) {
+          setState(() {
+            _name = fallbackName;
+            _email = fallbackEmail;
+            _isLoading = false;
+          });
+        }
       }
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _showEditDialog() {
-    final nameController = TextEditingController(text: _name);
-    final phoneController = TextEditingController(text: _phone);
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text("Edit Profil"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: "Nama",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: "Nomor Telepon",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Batal", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F3773),
-              ),
-              onPressed: () async {
-                final uid = _auth.currentUser?.uid;
-                if (uid == null) return;
-
-                final newName = nameController.text.trim();
-                final newPhone = phoneController.text.trim();
-
-                await _firestore.collection('users').doc(uid).update({
-                  'name': newName,
-                  'phone': newPhone,
-                });
-
-                // Update display name di Firebase Auth juga
-                await _auth.currentUser?.updateDisplayName(newName);
-
-                if (mounted) {
-                  setState(() {
-                    _name = newName;
-                    _phone = newPhone;
-                  });
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Profil berhasil diperbarui")),
-                  );
-                }
-              },
-              child: const Text(
-                "Simpan",
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -218,14 +159,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  _phone.isEmpty ? "-" : _phone,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
                                   _email,
                                   style: const TextStyle(
                                     fontSize: 12,
@@ -234,13 +167,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ),
                               ],
                             ),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.edit_note,
-                              color: Color(0xFF0F172A),
-                            ),
-                            onPressed: _showEditDialog,
                           ),
                         ],
                       ),

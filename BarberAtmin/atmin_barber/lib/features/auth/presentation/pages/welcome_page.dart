@@ -17,22 +17,20 @@ class _WelcomePageState extends State<WelcomePage> {
   void initState() {
     super.initState();
 
-    // 3. TIMERNYA DI SINI! Otomatis pindah setelah 3 detik
-    Timer(const Duration(seconds: 2), () {
-      final user = FirebaseAuth.instance.currentUser;
-      if (!mounted) return; // Pastikan widget masih ada di tree sebelum navigasi
+    Future.delayed(const Duration(seconds: 2), () async {
+      final user = await FirebaseAuth.instance.authStateChanges().first;
+
+      if (!mounted) return;
 
       if (user != null) {
-        // Jika user sudah login, langsung ke AdminDashboard
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const AdminDashboardPage()),
+          MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
         );
       } else {
-        // Jika user belum login, pindah ke LoginPage
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
+          MaterialPageRoute(builder: (_) => const LoginPage()),
         );
       }
     });

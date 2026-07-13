@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'register_page.dart';
 import 'reservation_page.dart';
 import '../../data/services/auth_service.dart';
@@ -16,13 +18,77 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   bool _obscurePassword = true;
+
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isGoogleLoading = true;
+    });
+
+    try {
+      // Sign out dulu dari sesi Google sebelumnya, supaya popup
+      // pilih akun selalu muncul (bukan auto-login akun terakhir).
+      await _googleSignIn.signOut();
+
+      // 1. Buka picker akun Google
+      final googleUser = await _googleSignIn.signIn();
+
+      // User membatalkan proses login
+      if (googleUser == null) {
+        setState(() {
+          _isGoogleLoading = false;
+        });
+        return;
+      }
+
+      // 2. Ambil token autentikasi dari akun Google yang dipilih
+      final googleAuth = await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // 3. Login ke Firebase pakai credential Google tadi
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ReservationPage()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isGoogleLoading = false;
+      });
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Login dengan Google Gagal"),
+          content: Text(e.toString()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override
@@ -269,20 +335,13 @@ class _LoginPageState extends State<LoginPage> {
                 ],
               ),
               const SizedBox(height: 30),
-
-              // 8. LOG IN WITH FACEBOOK (Sekarang Pakai Assets)
-              SocialAssetButton(
-                imagePath: 'assets/ic-facebook.png',
-                text: "Log in with Facebook",
-                onPressed: () {},
-              ),
-              const SizedBox(height: 16),
-
+              
               // 9. LOG IN WITH GOOGLE (Sekarang Pakai Assets)
               SocialAssetButton(
                 imagePath: 'assets/ic-google.png',
-                text: "Log in with Google",
-                onPressed: () {},
+                text: _isGoogleLoading ? "Menghubungkan..." : "Log in with Google",
+                isLoading: _isGoogleLoading,
+                onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
               ),
               const SizedBox(height: 40),
 
@@ -330,13 +389,15 @@ class _LoginPageState extends State<LoginPage> {
 class SocialAssetButton extends StatelessWidget {
   final String imagePath;
   final String text;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
+  final bool isLoading;
 
   const SocialAssetButton({
     super.key,
     required this.imagePath,
     required this.text,
     required this.onPressed,
+    this.isLoading = false,
   });
 
   @override
@@ -357,7 +418,17 @@ class SocialAssetButton extends StatelessWidget {
           mainAxisSize:
               MainAxisSize.min, // Menghindari tombol nabrak/melar kesamping
           children: [
-            Image.asset(imagePath, width: 24, height: 24, fit: BoxFit.contain),
+            if (isLoading)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  color: Color(0xFF0F172A),
+                ),
+              )
+            else
+              Image.asset(imagePath, width: 24, height: 24, fit: BoxFit.contain),
             const SizedBox(width: 12),
             Text(
               text,

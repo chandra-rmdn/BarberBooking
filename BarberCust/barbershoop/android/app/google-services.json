@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "394175121263-55r964725okdnv58j2o3vfdj16m9slns.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.atmin_barber",
+            "certificate_hash": "c8b5eac7a9243b57cddc2369e359a32c69659347"
+          }
+        },
+        {
           "client_id": "394175121263-oi2tgtj3gl988fu3j88ekpniake194vj.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -49,6 +57,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "394175121263-ls465bq0nm7pgng7scoic7ur2er382j5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.barbershoop",
+            "certificate_hash": "c8b5eac7a9243b57cddc2369e359a32c69659347"
+          }
+        },
         {
           "client_id": "394175121263-oi2tgtj3gl988fu3j88ekpniake194vj.apps.googleusercontent.com",
           "client_type": 3

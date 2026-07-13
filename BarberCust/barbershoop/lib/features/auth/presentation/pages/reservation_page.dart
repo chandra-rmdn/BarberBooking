@@ -70,16 +70,21 @@ class _ReservationPageState extends State<ReservationPage> {
 
   Future<void> _loadUserData() async {
     final uid = _auth.currentUser?.uid;
+    print("UID: $uid"); // tambah ini
     if (uid == null) return;
     try {
       final doc = await _firestore.collection('users').doc(uid).get();
+      print("Doc exists: ${doc.exists}"); // tambah ini
+      print("Doc data: ${doc.data()}"); // tambah ini
       if (doc.exists && mounted) {
         setState(() {
           _userName = doc.data()?['name'] ?? '';
           _userPhone = doc.data()?['phone'] ?? '';
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      print("Error loadUserData: $e"); // tambah ini
+    }
   }
 
   void _listenBookedTimes(DateTime date) {
@@ -143,12 +148,6 @@ class _ReservationPageState extends State<ReservationPage> {
         .doc(weekdayName)
         .snapshots()
         .listen((event) async {
-          debugPrint("========== DEFAULT LISTENER ==========");
-          debugPrint("doc id     : ${event.id}");
-          debugPrint("exists     : ${event.exists}");
-          debugPrint("data       : ${event.data()}");
-          debugPrint("selected   : $_selectedDay");
-          debugPrint("listener   : $weekdayName");
 
           if (!mounted) return;
 
@@ -348,7 +347,7 @@ class _ReservationPageState extends State<ReservationPage> {
                               ),
                               SizedBox(height: 4),
                               Text(
-                                "(isi deskripsi....)",
+                                "Haircut, styling, dan grooming profesional.",
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontStyle: FontStyle.italic,
@@ -497,6 +496,10 @@ class _ReservationPageState extends State<ReservationPage> {
   Widget _buildReservationTabContent() {
     return Builder(
       builder: (context) {
+        if (_storeSettings == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
         final bool isGlobalStoreOpen = _storeSettings?.isStoreOpen ?? false;
         final bool isSelectedDateOpen =
             _currentSchedule != null && _currentSchedule!.isOpen;
