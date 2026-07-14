@@ -23,10 +23,11 @@ class _BookingsTabState extends State<BookingsTab> {
 
   final Map<String, String> _statusMap = const {
     "Waiting": "Pending",
-    "Confirmed": "Approved",
+    "Approved": "Approved",
     "Rejected": "Rejected",
-    "Done": "Completed",
+    "Completed": "Completed",
     "Cancelled": "CancelledByCustomer",
+    "Expired": "Expired",
   };
 
   @override
@@ -66,10 +67,11 @@ class _BookingsTabState extends State<BookingsTab> {
             children: [
               _buildFilterCapsule("All"),
               _buildFilterCapsule("Waiting"),
-              _buildFilterCapsule("Confirmed"),
+              _buildFilterCapsule("Approved"),
               _buildFilterCapsule("Rejected"),
-              _buildFilterCapsule("Done"),
+              _buildFilterCapsule("Completed"),
               _buildFilterCapsule("Cancelled"),
+              _buildFilterCapsule("Expired"),
             ],
           ),
         ),
@@ -195,7 +197,7 @@ class _BookingsTabState extends State<BookingsTab> {
         showApproveReject = true;
         break;
       case 'Approved':
-        statusText = "Confirmed";
+        statusText = "Approved";
         statusBgColor = const Color(0xFFD4EDDA);
         statusTextColor = const Color(0xFF28A745);
         showComplete = true;
@@ -206,7 +208,7 @@ class _BookingsTabState extends State<BookingsTab> {
         statusTextColor = const Color(0xFFDC3545);
         break;
       case 'Completed':
-        statusText = "Done";
+        statusText = "Completed";
         statusBgColor = const Color(0xFFE2E3E5);
         statusTextColor = Colors.grey;
         break;
@@ -326,10 +328,15 @@ class _BookingsTabState extends State<BookingsTab> {
                     _showConfirmationDialog(
                       title: "Selesaikan Reservasi",
                       message:
-                          "Reservasi milik\n\n${reservation.name}\n\nsudah selesai?",
+                          "Reservasi milik ${reservation.name} sudah selesai?",
                       color: const Color(0xFF0F3773),
                       onConfirm: () async {
                         await _completeReservation(reservation.id!);
+
+                        _showTopBanner(
+                            context,
+                            message: "Reservasi selesai",
+                          );
                       },
                     );
                   },
@@ -352,7 +359,7 @@ class _BookingsTabState extends State<BookingsTab> {
         color = const Color(0xFFFF9F43);
         break;
       case "Approved":
-        label = "Confirmed";
+        label = "Approved";
         color = const Color(0xFF28A745);
         break;
       case "Rejected":
@@ -360,7 +367,7 @@ class _BookingsTabState extends State<BookingsTab> {
         color = const Color(0xFFDC3545);
         break;
       case "Completed":
-        label = "Done";
+        label = "Completed";
         color = Colors.grey;
         break;
       case "CancelledByCustomer":
@@ -821,12 +828,6 @@ class _BookingsTabState extends State<BookingsTab> {
         bookingDate: reservation.bookingDate,
         bookingTime: reservation.bookingTime,
       );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Reservasi berhasil disetujui")),
-        );
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -845,12 +846,6 @@ class _BookingsTabState extends State<BookingsTab> {
         bookingDate: reservation.bookingDate,
         bookingTime: reservation.bookingTime,
       );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Reservasi berhasil ditolak")),
-        );
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -863,12 +858,6 @@ class _BookingsTabState extends State<BookingsTab> {
   Future<void> _completeReservation(String reservationId) async {
     try {
       await _reservationService.completeReservation(reservationId);
-
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Reservasi selesai")));
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -887,32 +876,84 @@ class _BookingsTabState extends State<BookingsTab> {
     await showDialog(
       context: context,
       builder: (_) {
-        return AlertDialog(
+        return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text("Batal"),
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.black54,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text(
+                          "Batal",
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          backgroundColor: color,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          await onConfirm();
+                        },
+                        child: const Text(
+                          "Ya",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: color,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () async {
-                Navigator.pop(context);
-
-                await onConfirm();
-              },
-              child: const Text("Ya"),
-            ),
-          ],
+          ),
         );
       },
     );
