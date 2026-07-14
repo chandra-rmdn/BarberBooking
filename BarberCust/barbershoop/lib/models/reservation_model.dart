@@ -35,7 +35,7 @@ class ReservationModel {
     required this.status,
     this.createdAt,
   });
-
+ 
   /// Batas waktu sampai reservasi ini harus dikonfirmasi (approve/reject)
   /// oleh barbershop. Null kalau createdAt belum ke-resolve dari server
   /// (biasanya sesaat setelah dibuat, sebelum serverTimestamp() menetap).

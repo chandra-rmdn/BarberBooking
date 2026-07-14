@@ -183,7 +183,8 @@ class _LoginPageState extends State<LoginPage> {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const AdminDashboardPage(),
+                                builder: (context) =>
+                                    const AdminDashboardPage(),
                               ),
                             );
                           } catch (e) {
@@ -247,34 +248,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                 ),
-              ),
-              const SizedBox(height: 30),
-
-              // 7. OR SEPARATOR
-              Row(
-                children: const [
-                  Expanded(
-                    child: Divider(color: Colors.black12, thickness: 1.5),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Text(
-                      "Or login with",
-                      style: TextStyle(color: Colors.black26, fontSize: 14),
-                    ),
-                  ),
-                  Expanded(
-                    child: Divider(color: Colors.black12, thickness: 1.5),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 30),
-
-              // 9. LOG IN WITH GOOGLE (Sekarang Pakai Assets)
-              SocialAssetButton(
-                imagePath: 'assets/ic-google.png',
-                text: "Log in with Google",
-                onPressed: () {},
               ),
               const SizedBox(height: 40),
 

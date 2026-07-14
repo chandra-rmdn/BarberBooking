@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:atmin_barber/models/reservation_model.dart';
+import 'notification_service.dart';
 
 class ReservationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final NotificationService _notificationService = NotificationService();
 
   /// ==========================================================
   /// CREATE RESERVATION
@@ -20,9 +22,7 @@ class ReservationService {
         "${bookingDate.day.toString().padLeft(2, '0')}";
 
     final bookingTimeMinutes = bookingTime.split(':').map(int.parse).toList();
-
     final totalMinutes = bookingTimeMinutes[0] * 60 + bookingTimeMinutes[1];
-
     final available = await isSlotAvailable(
       bookingDate: formattedDate,
       bookingTime: bookingTime,
@@ -79,14 +79,20 @@ class ReservationService {
     for (final doc in snapshot.docs) {
       final data = doc.data();
 
-      final status = data["status"];
+      final status = (data["status"] ?? "").toString().toLowerCase();
 
-      if (status == "Pending" || status == "Approved") {
+      if (status == "pending" || status == "approved") {
         batch.update(doc.reference, {
           "status": "CancelledByAdmin",
           "updatedAt": FieldValue.serverTimestamp(),
           "cancelledAt": FieldValue.serverTimestamp(),
         });
+        await _notificationService.createCancelledNotification(
+          userId: data["userId"],
+          reservationId: doc.id,
+          bookingDate: data["bookingDate"],
+          bookingTime: data["bookingTime"],
+        );
       }
     }
 
@@ -115,14 +121,30 @@ class ReservationService {
 
       final status = (data["status"] ?? "").toString().toLowerCase();
 
-      if (status != "pending" && status != "confirmed") {
+      if (status != "pending" && status != "approved") {
         continue;
       }
 
       final bookingMinutes = data["bookingTimeMinutes"] as int;
 
       if (bookingMinutes < openMinutes || bookingMinutes >= closeMinutes) {
-        batch.update(doc.reference, {"status": "CancelledByAdmin"});
+        batch.update(doc.reference, {
+          "status": "CancelledByAdmin",
+          "updatedAt": FieldValue.serverTimestamp(),
+          "cancelledAt": FieldValue.serverTimestamp(),
+        });
+        try {
+          await _notificationService.createCancelledNotification(
+            userId: data["userId"],
+            reservationId: doc.id,
+            bookingDate: data["bookingDate"],
+            bookingTime: data["bookingTime"],
+          );
+
+          print("NOTIF BERHASIL ${doc.id}");
+        } catch (e) {
+          print("ERROR NOTIF : $e");
+        }
       }
     }
 
@@ -242,7 +264,7 @@ class ReservationService {
     return snapshot.docs.where((doc) {
       final status = (doc["status"] ?? "").toString().toLowerCase();
 
-      return status == "pending" || status == "confirmed";
+      return status == "pending" || status == "approved";
     }).length;
   }
 }

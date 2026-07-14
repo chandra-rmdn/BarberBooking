@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../models/reservation_model.dart';
 import '../../../../services/reservation_service.dart';
+import '../../../../services/notification_service.dart';
 
 // ===========================================================================
 // KONTEN TAB 1: BOOKINGS
@@ -15,6 +16,7 @@ class BookingsTab extends StatefulWidget {
 
 class _BookingsTabState extends State<BookingsTab> {
   final ReservationService _reservationService = ReservationService();
+  final NotificationService _notificationService = NotificationService();
 
   String _activeFilter = "All";
   String _search = "";
@@ -588,7 +590,7 @@ class _BookingsTabState extends State<BookingsTab> {
                         onPressed: () async {
                           Navigator.pop(context);
 
-                          await _approveReservation(reservation.id!);
+                          await _approveReservation(reservation);
 
                           _showTopBanner(
                             context,
@@ -725,7 +727,7 @@ class _BookingsTabState extends State<BookingsTab> {
                         onPressed: () async {
                           Navigator.pop(context);
 
-                          await _rejectReservation(reservation.id!);
+                          await _rejectReservation(reservation);
 
                           _showTopBanner(
                             context,
@@ -810,9 +812,15 @@ class _BookingsTabState extends State<BookingsTab> {
     });
   }
 
-  Future<void> _approveReservation(String reservationId) async {
+  Future<void> _approveReservation(ReservationModel reservation) async {
     try {
-      await _reservationService.approveReservation(reservationId);
+      await _reservationService.approveReservation(reservation.id!);
+      await _notificationService.createApprovedNotification(
+        userId: reservation.userId,
+        reservationId: reservation.id!,
+        bookingDate: reservation.bookingDate,
+        bookingTime: reservation.bookingTime,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -828,9 +836,15 @@ class _BookingsTabState extends State<BookingsTab> {
     }
   }
 
-  Future<void> _rejectReservation(String reservationId) async {
+  Future<void> _rejectReservation(ReservationModel reservation) async {
     try {
-      await _reservationService.rejectReservation(reservationId);
+      await _reservationService.rejectReservation(reservation.id!);
+      await _notificationService.createRejectedNotification(
+        userId: reservation.userId,
+        reservationId: reservation.id!,
+        bookingDate: reservation.bookingDate,
+        bookingTime: reservation.bookingTime,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

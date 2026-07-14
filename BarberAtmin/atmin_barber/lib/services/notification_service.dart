@@ -1,7 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class NotificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  String _formatDate(String bookingDate) {
+    return DateFormat(
+      "EEEE, d MMMM yyyy",
+      "id_ID",
+    ).format(DateTime.parse(bookingDate));
+  }
+
+  String _formatTime(String bookingTime) {
+    return bookingTime.replaceAll(":", ".");
+  }
 
   Future<void> createNotification({
     required String userId,
@@ -32,7 +43,7 @@ class NotificationService {
       reservationId: reservationId,
       title: "Reservasi Dikonfirmasi",
       body:
-          "Reservasi Anda pada $bookingDate pukul $bookingTime telah dikonfirmasi.",
+          "Reservasi Anda pada ${_formatDate(bookingDate)} pukul ${_formatTime(bookingTime)} telah dikonfirmasi.",
       type: "approved",
     );
   }
@@ -48,7 +59,7 @@ class NotificationService {
       reservationId: reservationId,
       title: "Reservasi Ditolak",
       body:
-          "Maaf, reservasi Anda pada $bookingDate pukul $bookingTime ditolak.",
+          "Maaf, reservasi Anda pada ${_formatDate(bookingDate)} pukul ${_formatTime(bookingTime)} ditolak.",
       type: "rejected",
     );
   }
@@ -64,7 +75,7 @@ class NotificationService {
       reservationId: reservationId,
       title: "Reservasi Dibatalkan",
       body:
-          "Reservasi Anda pada $bookingDate pukul $bookingTime dibatalkan karena perubahan jadwal operasional barbershop.",
+          "Reservasi Anda pada ${_formatDate(bookingDate)} pukul ${_formatTime(bookingTime)} dibatalkan karena perubahan jadwal operasional barbershop.",
       type: "cancelled",
     );
   }
@@ -121,9 +132,5 @@ class NotificationService {
     }
 
     await batch.commit();
-  }
-
-  Future<void> deleteNotification(String id) async {
-    await _firestore.collection("notifications").doc(id).delete();
   }
 }

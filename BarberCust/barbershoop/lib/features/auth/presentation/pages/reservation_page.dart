@@ -9,6 +9,8 @@ import 'package:barbershoop/service/schedule_service.dart';
 import 'package:barbershoop/service/reservation_service.dart';
 import 'package:barbershoop/models/schedule_model.dart';
 import 'package:barbershoop/models/store_settings_model.dart';
+import '../../../../service/notification_service.dart';
+import 'notification_page.dart';
 import 'dart:async';
 
 class ReservationPage extends StatefulWidget {
@@ -39,6 +41,7 @@ class _ReservationPageState extends State<ReservationPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ScheduleService _scheduleService = ScheduleService();
   final ReservationService _reservationService = ReservationService();
+  final NotificationService _notificationService = NotificationService();
 
   // Data user dari Firestore (untuk header greeting & auto-isi form)
   String _userName = '';
@@ -101,18 +104,23 @@ class _ReservationPageState extends State<ReservationPage> {
         .where('status', whereIn: ['Pending', 'Approved'])
         .snapshots()
         .listen((snapshot) {
-          print("DOC COUNT = ${snapshot.docs.length}");
+          if (!mounted) return;
+
+          final myUserId = _auth.currentUser?.uid;
+          String? myTime;
 
           for (final doc in snapshot.docs) {
-            print(doc.data());
+            if (doc['userId'] == myUserId) {
+              myTime = doc['bookingTime'] as String;
+              break;
+            }
           }
-
-          if (!mounted) return;
 
           setState(() {
             _bookedTimes = snapshot.docs
                 .map((doc) => doc['bookingTime'] as String)
                 .toList();
+            _confirmedTime = myTime;
           });
         });
   }
@@ -148,7 +156,6 @@ class _ReservationPageState extends State<ReservationPage> {
         .doc(weekdayName)
         .snapshots()
         .listen((event) async {
-
           if (!mounted) return;
 
           if (_selectedDay != null) {
@@ -285,10 +292,64 @@ class _ReservationPageState extends State<ReservationPage> {
                       // 🌟 NAVIGASI ICON BELL + GEAR KE PROFILE PAGE
                       Row(
                         children: [
-                          const Icon(
-                            Icons.notifications_none,
-                            color: Color(0xFF0F172A),
-                            size: 26,
+                          StreamBuilder<QuerySnapshot>(
+                            stream: _notificationService.getUnreadNotifications(
+                              _auth.currentUser!.uid,
+                            ),
+                            builder: (context, snapshot) {
+                              final unread = snapshot.data?.docs.length ?? 0;
+
+                              return Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.notifications_none,
+                                      color: Color(0xFF0F172A),
+                                      size: 26,
+                                    ),
+                                    onPressed: () async {
+                                      await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const NotificationPage(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+
+                                  if (unread > 0)
+                                    Positioned(
+                                      right: 6,
+                                      top: 6,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 18,
+                                          minHeight: 18,
+                                        ),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            unread > 99
+                                                ? "99+"
+                                                : unread.toString(),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
                           ),
                           const SizedBox(width: 16),
                           IconButton(
@@ -331,13 +392,13 @@ class _ReservationPageState extends State<ReservationPage> {
                       ],
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
+                              const Text(
                                 "Jamal Barbershop",
                                 style: TextStyle(
                                   fontSize: 20,
@@ -345,9 +406,11 @@ class _ReservationPageState extends State<ReservationPage> {
                                   color: Color(0xFF0F172A),
                                 ),
                               ),
-                              SizedBox(height: 4),
-                              Text(
-                                "Haircut, styling, dan grooming profesional.",
+
+                              const SizedBox(height: 4),
+
+                              const Text(
+                                "Haircut, styling, and grooming profesional.",
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontStyle: FontStyle.italic,
@@ -357,34 +420,28 @@ class _ReservationPageState extends State<ReservationPage> {
                             ],
                           ),
                         ),
+
                         const SizedBox(width: 12),
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _currentTabIndex = 0;
-                            });
-                            DefaultTabController.of(context).animateTo(0);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
+
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F3773),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                              color: const Color(0xFFF5A623),
+                              width: 1.5,
                             ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0F3773),
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(
-                                color: const Color(0xFFF5A623),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: const Text(
-                              "Booking Sekarang!",
-                              style: TextStyle(
-                                color: Color(0xFFF5A623),
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          ),
+                          child: const Text(
+                            "Booking Sekarang!",
+                            style: TextStyle(
+                              color: Color(0xFFF5A623),
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
@@ -853,7 +910,98 @@ class _ReservationPageState extends State<ReservationPage> {
     );
   }
 
-  void _showReservationFormDialog(BuildContext context, String time) {
+  // Cek apakah user masih punya reservasi aktif (Pending/Approved).
+  // Batas: 1 waktu cuma boleh 1 reservasi aktif per customer.
+  Future<bool> _hasActiveReservation() async {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return false;
+
+    final snapshot = await _firestore
+        .collection('reservations')
+        .where('userId', isEqualTo: userId)
+        .where('status', whereIn: ['Pending', 'Approved'])
+        .limit(1)
+        .get();
+
+    return snapshot.docs.isNotEmpty;
+  }
+
+  void _showActiveReservationBlockedDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Masih Ada Reservasi Aktif",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  "Kamu masih punya reservasi yang belum selesai (menunggu konfirmasi atau sudah dikonfirmasi). "
+                  "Selesaikan atau batalkan dulu reservasi itu di tab 'Reservasi Saya' sebelum membuat reservasi baru.",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.black54,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F3773),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      "Mengerti",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showReservationFormDialog(
+    BuildContext context,
+    String time,
+  ) async {
+    final hasActive = await _hasActiveReservation();
+    if (hasActive) {
+      if (!context.mounted) return;
+      _showActiveReservationBlockedDialog();
+      return;
+    }
+
+    if (!context.mounted) return;
+
     // Auto-isi dari state yang sudah di-load waktu halaman dibuka
     final nameController = TextEditingController(text: _userName);
     final phoneController = TextEditingController(text: _userPhone);
